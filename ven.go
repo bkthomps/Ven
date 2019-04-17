@@ -35,6 +35,8 @@ var screen tcell.Screen
 
 var sidebar = 0
 
+var isNormalMode = true
+
 func putln(vertical int, str string) {
 	puts(screen, terminalStyle, sidebar, vertical, str)
 }
@@ -89,6 +91,49 @@ func puts(s tcell.Screen, style tcell.Style, x, y int, str string) {
 	}
 }
 
+func displayMode() {
+	if isNormalMode {
+		putln(30, "-- NORMAL --")
+	} else {
+		putln(30, "-- INSERT --")
+	}
+	screen.Sync()
+}
+
+func normalMode(ev *tcell.EventKey, quit chan struct{}) {
+	switch ev.Rune() {
+	case 'i':
+		isNormalMode = false
+		displayMode()
+	case 'q':
+		close(quit)
+	}
+}
+
+func insertMode(ev *tcell.EventKey) {
+	switch ev.Key() {
+	case tcell.KeyEsc:
+		isNormalMode = true
+		displayMode()
+	}
+}
+
+func listener(quit chan struct{}) {
+	for {
+		ev := screen.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			if isNormalMode {
+				normalMode(ev, quit)
+			} else {
+				insertMode(ev)
+			}
+		case *tcell.EventResize:
+			displayMode()
+		}
+	}
+}
+
 func main() {
 	s, e := tcell.NewScreen()
 	screen = s
@@ -101,8 +146,9 @@ func main() {
 	}
 	screen.SetStyle(terminalStyle)
 	quit := make(chan struct{})
-	putln(0, "Hello World")
 	screen.Show()
+	displayMode()
+	go listener(quit)
 	<-quit
 	screen.Fini()
 }
