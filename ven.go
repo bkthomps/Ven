@@ -26,16 +26,27 @@ import (
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
 	"github.com/mattn/go-runewidth"
+	terminal "github.com/wayneashleyberry/terminal-dimensions"
 	"log"
 )
 
 var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
-
 var screen tcell.Screen
 
-var sidebar = 0
+const (
+	InsertMode = iota
+	NormalMode
+	CommandMode
+	CommandErrorMode
+)
 
-var isNormalMode = true
+var mode = NormalMode
+
+var sidebar = 0
+var screenHeight = 0
+var screenWidth = 0
+var blankLine = ""
+var command = ""
 
 func putln(vertical int, str string) {
 	puts(screen, terminalStyle, sidebar, vertical, str)
@@ -92,29 +103,69 @@ func puts(s tcell.Screen, style tcell.Style, x, y int, str string) {
 }
 
 func displayMode() {
-	if isNormalMode {
-		putln(30, "-- NORMAL --")
-	} else {
-		putln(30, "-- INSERT --")
+	switch mode {
+	case InsertMode:
+		putln(screenHeight-1, "-- INSERT --")
+	case NormalMode:
+		putln(screenHeight-1, blankLine)
+	case CommandMode:
+		putln(screenHeight-1, blankLine)
+		putln(screenHeight-1, command)
 	}
 	screen.Sync()
-}
-
-func normalMode(ev *tcell.EventKey, quit chan struct{}) {
-	switch ev.Rune() {
-	case 'i':
-		isNormalMode = false
-		displayMode()
-	case 'q':
-		close(quit)
-	}
 }
 
 func insertMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		isNormalMode = true
-		displayMode()
+		mode = NormalMode
+	}
+	displayMode()
+}
+
+func normalMode(ev *tcell.EventKey) {
+	switch ev.Rune() {
+	case 'i':
+		mode = InsertMode
+	case ':':
+		mode = CommandMode
+		command = ":"
+	}
+	displayMode()
+}
+
+func executeCommand(quit chan struct{}) {
+	switch command {
+	case ":q!":
+		close(quit)
+	}
+}
+
+func commandMode(ev *tcell.EventKey, quit chan struct{}) {
+	switch ev.Key() {
+	case tcell.KeyEsc:
+		mode = NormalMode
+	case tcell.KeyEnter:
+		executeCommand(quit)
+	case tcell.KeyDEL:
+		sz := len(command)
+		command = command[:sz-1]
+		if sz == 1 {
+			mode = NormalMode
+		}
+	default:
+		command += string(ev.Rune())
+	}
+	displayMode()
+}
+
+func computeScreenProperties() {
+	y, _ := terminal.Height()
+	screenHeight = int(y)
+	x, _ := terminal.Width()
+	screenWidth = int(x)
+	for i := 0; i < screenWidth; i++ {
+		blankLine += " "
 	}
 }
 
@@ -123,12 +174,16 @@ func listener(quit chan struct{}) {
 		ev := screen.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
-			if isNormalMode {
-				normalMode(ev, quit)
-			} else {
+			switch mode {
+			case InsertMode:
 				insertMode(ev)
+			case NormalMode:
+				normalMode(ev)
+			case CommandMode:
+				commandMode(ev, quit)
 			}
 		case *tcell.EventResize:
+			computeScreenProperties()
 			displayMode()
 		}
 	}
@@ -147,6 +202,7 @@ func main() {
 	screen.SetStyle(terminalStyle)
 	quit := make(chan struct{})
 	screen.Show()
+	computeScreenProperties()
 	displayMode()
 	go listener(quit)
 	<-quit
