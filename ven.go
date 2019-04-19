@@ -128,7 +128,7 @@ func cursorLocation(ev *tcell.EventKey) {
 	screen.SetContent(xCursor, yCursor, ' ', nil, terminalStyle)
 	switch ev.Key() {
 	case tcell.KeyDown:
-		if yCursor < screenHeight {
+		if yCursor < screenHeight - 2 {
 			yCursor += 1
 		}
 	case tcell.KeyUp:
@@ -140,7 +140,7 @@ func cursorLocation(ev *tcell.EventKey) {
 			xCursor -= 1
 		}
 	case tcell.KeyRight:
-		if xCursor < screenWidth {
+		if xCursor < screenWidth - 1 {
 			xCursor += 1
 		}
 	}
