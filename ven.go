@@ -26,11 +26,11 @@ import (
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
 	"github.com/mattn/go-runewidth"
-	terminal "github.com/wayneashleyberry/terminal-dimensions"
 	"log"
 )
 
 var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
+var cursorStyle = terminalStyle.Background(tcell.ColorDarkGray)
 var screen tcell.Screen
 
 const (
@@ -42,9 +42,14 @@ const (
 
 var mode = NormalMode
 
-var sidebar = 0
 var screenHeight = 0
 var screenWidth = 0
+
+var xCursor = 0
+var yCursor = 0
+var xCommandCursor = 0
+
+var sidebar = 0
 var blankLine = ""
 var command = ""
 
@@ -105,31 +110,66 @@ func puts(s tcell.Screen, style tcell.Style, x, y int, str string) {
 func displayMode() {
 	switch mode {
 	case InsertMode:
+		screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
 		putln(screenHeight-1, "-- INSERT --")
 	case NormalMode:
+		screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
 		putln(screenHeight-1, blankLine)
 	case CommandMode:
+		screen.SetContent(xCursor, yCursor, ' ', nil, terminalStyle)
 		putln(screenHeight-1, blankLine)
 		putln(screenHeight-1, command)
+		screen.SetContent(xCommandCursor, screenHeight-1, ' ', nil, cursorStyle)
 	}
 	screen.Sync()
+}
+
+func cursorLocation(ev *tcell.EventKey) {
+	screen.SetContent(xCursor, yCursor, ' ', nil, terminalStyle)
+	switch ev.Key() {
+	case tcell.KeyDown:
+		if yCursor < screenHeight {
+			yCursor += 1
+		}
+	case tcell.KeyUp:
+		if yCursor > 0 {
+			yCursor -= 1
+		}
+	case tcell.KeyLeft:
+		if xCursor > 0 {
+			xCursor -= 1
+		}
+	case tcell.KeyRight:
+		if xCursor < screenWidth {
+			xCursor += 1
+		}
+	}
+	screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
 }
 
 func insertMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
 		mode = NormalMode
+	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
+		cursorLocation(ev)
 	}
 	displayMode()
 }
 
 func normalMode(ev *tcell.EventKey) {
-	switch ev.Rune() {
-	case 'i':
-		mode = InsertMode
-	case ':':
-		mode = CommandMode
-		command = ":"
+	switch ev.Key() {
+	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
+		cursorLocation(ev)
+	default:
+		switch ev.Rune() {
+		case 'i':
+			mode = InsertMode
+		case ':':
+			mode = CommandMode
+			command = ":"
+			xCommandCursor = 1
+		}
 	}
 	displayMode()
 }
@@ -153,18 +193,18 @@ func commandMode(ev *tcell.EventKey, quit chan struct{}) {
 		if sz == 1 {
 			mode = NormalMode
 		}
+		xCommandCursor--
 	default:
 		command += string(ev.Rune())
+		xCommandCursor++
 	}
 	displayMode()
 }
 
 func computeScreenProperties() {
-	y, _ := terminal.Height()
-	screenHeight = int(y)
-	x, _ := terminal.Width()
-	screenWidth = int(x)
-	for i := 0; i < screenWidth; i++ {
+	x, y := screen.Size()
+	screenWidth, screenHeight = x, y
+	for i := 0; i < x; i++ {
 		blankLine += " "
 	}
 }
@@ -203,6 +243,7 @@ func main() {
 	quit := make(chan struct{})
 	screen.Show()
 	computeScreenProperties()
+	screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
 	displayMode()
 	go listener(quit)
 	<-quit
