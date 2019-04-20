@@ -28,6 +28,8 @@ import (
 	"log"
 )
 
+const errorCommand = "-- Invalid Command --"
+
 var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
 var cursorStyle = terminalStyle.Background(tcell.ColorDarkGray)
 var screen tcell.Screen
@@ -77,7 +79,10 @@ func listener(quit chan struct{}) {
 				normalMode(ev)
 			case CommandMode:
 				commandMode(ev, quit)
+			case CommandErrorMode:
+				commandErrorMode(ev)
 			}
+			displayMode()
 		case *tcell.EventResize:
 			updateProperties()
 			displayMode()
@@ -92,7 +97,6 @@ func insertMode(ev *tcell.EventKey) {
 	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
 		cursorLocation(ev)
 	}
-	displayMode()
 }
 
 func normalMode(ev *tcell.EventKey) {
@@ -109,7 +113,6 @@ func normalMode(ev *tcell.EventKey) {
 			xCommandCursor = 1
 		}
 	}
-	displayMode()
 }
 
 func commandMode(ev *tcell.EventKey, quit chan struct{}) {
@@ -125,11 +128,24 @@ func commandMode(ev *tcell.EventKey, quit chan struct{}) {
 			mode = NormalMode
 		}
 		xCommandCursor--
+	case tcell.KeyDown, tcell.KeyUp:
+		// Do Nothing
+	case tcell.KeyLeft:
+		if xCommandCursor > 1 {
+			xCommandCursor--
+		}
+	case tcell.KeyRight:
+		if xCommandCursor < len(command) {
+			xCommandCursor++
+		}
 	default:
 		command += string(ev.Rune())
 		xCommandCursor++
 	}
-	displayMode()
+}
+
+func commandErrorMode(ev *tcell.EventKey) {
+	mode = CommandMode
 }
 
 func cursorLocation(ev *tcell.EventKey) {
@@ -159,6 +175,9 @@ func executeCommand(quit chan struct{}) {
 	switch command {
 	case ":q!":
 		close(quit)
+	default:
+		mode = CommandErrorMode
+		displayMode()
 	}
 }
 
@@ -183,6 +202,10 @@ func displayMode() {
 		putln(screenHeight-1, blankLine)
 		putln(screenHeight-1, command)
 		screen.SetContent(xCommandCursor, screenHeight-1, ' ', nil, cursorStyle)
+	case CommandErrorMode:
+		screen.SetContent(xCommandCursor, screenHeight-1, ' ', nil, terminalStyle)
+		putln(screenHeight-1, blankLine)
+		putln(screenHeight-1, errorCommand)
 	}
 	screen.Sync()
 }
