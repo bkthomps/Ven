@@ -23,6 +23,7 @@ SOFTWARE.
 package screen
 
 import (
+	"github.com/bkthomps/Ven/buffer"
 	"github.com/gdamore/tcell"
 	"github.com/mattn/go-runewidth"
 	"log"
@@ -41,7 +42,6 @@ var xCursor = 0
 var yCursor = 0
 var xCommandCursor = 0
 
-var sidebar = 0
 var blankLine = ""
 var command = ""
 
@@ -59,12 +59,46 @@ func Init(s tcell.Screen, quit chan struct{}) {
 	if e := screen.Init(); e != nil {
 		log.Fatal(e)
 	}
+	buffer.Init() // TODO: should set initial screen
 	screen.SetStyle(terminalStyle)
 	screen.Show()
 	updateProperties()
 	screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
 	displayMode()
 	go listener(quit)
+}
+
+func updateProperties() {
+	x, y := screen.Size()
+	screenWidth, screenHeight = x, y
+	for i := 0; i < x; i++ {
+		blankLine += " "
+	}
+}
+
+func displayMode() {
+	switch mode {
+	case InsertMode:
+		screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
+		putCommand("-- INSERT --")
+	case NormalMode:
+		screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
+		putCommand(blankLine)
+	case CommandMode:
+		screen.SetContent(xCursor, yCursor, ' ', nil, terminalStyle)
+		putCommand(blankLine)
+		putCommand(command)
+		screen.SetContent(xCommandCursor, screenHeight-1, ' ', nil, cursorStyle)
+	case CommandErrorMode:
+		screen.SetContent(xCommandCursor, screenHeight-1, ' ', nil, terminalStyle)
+		putCommand(blankLine)
+		putCommand(errorCommand)
+	}
+	screen.Sync()
+}
+
+func putCommand(str string) {
+	puts(screen, terminalStyle, 0, screenHeight-1, str)
 }
 
 func listener(quit chan struct{}) {
@@ -80,7 +114,7 @@ func listener(quit chan struct{}) {
 			case CommandMode:
 				commandMode(ev, quit)
 			case CommandErrorMode:
-				commandErrorMode(ev)
+				mode = CommandMode
 			}
 			displayMode()
 		case *tcell.EventResize:
@@ -94,15 +128,15 @@ func insertMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
 		mode = NormalMode
-	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
-		cursorLocation(ev)
+	default:
+		bufferAction(ev)
 	}
 }
 
 func normalMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
-		cursorLocation(ev)
+		bufferAction(ev)
 	default:
 		switch ev.Rune() {
 		case 'i':
@@ -144,28 +178,51 @@ func commandMode(ev *tcell.EventKey, quit chan struct{}) {
 	}
 }
 
-func commandErrorMode(ev *tcell.EventKey) {
-	mode = CommandMode
-}
-
-func cursorLocation(ev *tcell.EventKey) {
+func bufferAction(ev *tcell.EventKey) {
 	screen.SetContent(xCursor, yCursor, ' ', nil, terminalStyle)
+	// TODO: add cases for scrolling
 	switch ev.Key() {
 	case tcell.KeyDown:
-		if yCursor < screenHeight-2 {
-			yCursor += 1
+		possible := buffer.Down()
+		if possible {
+			yCursor++
 		}
 	case tcell.KeyUp:
-		if yCursor > 0 {
-			yCursor -= 1
+		possible := buffer.Up()
+		if possible {
+			yCursor--
 		}
 	case tcell.KeyLeft:
-		if xCursor > 0 {
-			xCursor -= 1
+		possible := buffer.Left()
+		if possible {
+			xCursor--
 		}
 	case tcell.KeyRight:
-		if xCursor < screenWidth-1 {
-			xCursor += 1
+		possible := buffer.Right()
+		if possible {
+			xCursor++
+		}
+	case tcell.KeyDEL:
+		possible := buffer.Remove()
+		putRune(' ')
+		if possible {
+			if ev.Rune() != '\n' {
+				xCursor--
+			} else {
+				// TODO: xCursor goes to end, count lines
+				yCursor--
+				// TODO: shift everything back
+			}
+		}
+	default:
+		buffer.Add(ev.Rune())
+		putRune(ev.Rune())
+		if ev.Rune() != '\n' {
+			xCursor++
+		} else {
+			xCursor = 0
+			yCursor++
+			// TODO: shift everything over
 		}
 	}
 	screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
@@ -181,37 +238,8 @@ func executeCommand(quit chan struct{}) {
 	}
 }
 
-func updateProperties() {
-	x, y := screen.Size()
-	screenWidth, screenHeight = x, y
-	for i := 0; i < x; i++ {
-		blankLine += " "
-	}
-}
-
-func displayMode() {
-	switch mode {
-	case InsertMode:
-		screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
-		putln(screenHeight-1, "-- INSERT --")
-	case NormalMode:
-		screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
-		putln(screenHeight-1, blankLine)
-	case CommandMode:
-		screen.SetContent(xCursor, yCursor, ' ', nil, terminalStyle)
-		putln(screenHeight-1, blankLine)
-		putln(screenHeight-1, command)
-		screen.SetContent(xCommandCursor, screenHeight-1, ' ', nil, cursorStyle)
-	case CommandErrorMode:
-		screen.SetContent(xCommandCursor, screenHeight-1, ' ', nil, terminalStyle)
-		putln(screenHeight-1, blankLine)
-		putln(screenHeight-1, errorCommand)
-	}
-	screen.Sync()
-}
-
-func putln(vertical int, str string) {
-	puts(screen, terminalStyle, sidebar, vertical, str)
+func putRune(r rune) {
+	puts(screen, terminalStyle, xCursor, yCursor, string(r))
 }
 
 // This function is from: https://github.com/gdamore/tcell/blob/master/_demos/unicode.go
