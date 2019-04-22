@@ -72,7 +72,7 @@ func Init(s tcell.Screen, quit chan struct{}) {
 
 func setInitial(arr []rune) {
 	x, y := 0, 0
-	for i := 0; i < len(arr) || i == screenHeight-1; i++ {
+	for i := 0; i < len(arr) && y != screenHeight; i++ {
 		cur := arr[i]
 		if cur == '\n' {
 			y++
@@ -81,6 +81,9 @@ func setInitial(arr []rune) {
 			putRune(cur, x, y)
 			x++
 		}
+	}
+	for i := y; i != screenHeight-1; i++ {
+		putRune('~', 0, i)
 	}
 }
 
@@ -233,7 +236,7 @@ func bufferAction(ev *tcell.EventKey) {
 		if possible {
 			if ev.Rune() != '\n' {
 				xCursor--
-				updateLine(requiredUpdates)
+				shiftLeft(requiredUpdates)
 			} else {
 				// TODO: xCursor goes to end, count lines
 				yCursor--
@@ -241,23 +244,31 @@ func bufferAction(ev *tcell.EventKey) {
 			}
 		}
 	default:
+		x, y := xCursor, yCursor
 		requiredUpdates := buffer.Add(ev.Rune())
-		putRune(ev.Rune(), xCursor, yCursor)
 		if ev.Rune() != '\n' {
-			updateLine(requiredUpdates)
 			xCursor++
+			shiftRight(requiredUpdates)
 		} else {
 			xCursor = 0
 			yCursor++
 			// TODO: shift all lines over
 		}
+		putRune(ev.Rune(), x, y)
 	}
 	setColor(xCursor, yCursor, cursorStyle)
 }
 
-func updateLine(requiredUpdates int) {
-	for i := xCursor; i < xCursor+requiredUpdates; i++ {
+func shiftLeft(requiredUpdates int) {
+	for i := xCursor; i <= xCursor+requiredUpdates; i++ {
 		r, _, _, _ := screen.GetContent(i+1, yCursor)
+		screen.SetContent(i, yCursor, r, nil, terminalStyle)
+	}
+}
+
+func shiftRight(requiredUpdates int) {
+	for i := xCursor + requiredUpdates; i >= xCursor; i-- {
+		r, _, _, _ := screen.GetContent(i-1, yCursor)
 		screen.SetContent(i, yCursor, r, nil, terminalStyle)
 	}
 }
@@ -268,15 +279,26 @@ func executeCommand(quit chan struct{}) {
 		close(quit)
 	case ":w":
 		// TODO: implement the version with file name also
-		err := buffer.Save()
-		if err != nil {
-			displayError(errorSave)
-		} else {
-			mode = NormalMode
+		write()
+	case ":wq":
+		// TODO: implement the version with file name also
+		saved := write()
+		if saved {
+			close(quit)
 		}
 	default:
 		displayError(errorCommand)
 	}
+}
+
+func write() (saved bool) {
+	err := buffer.Save()
+	if err != nil {
+		displayError(errorSave)
+		return false
+	}
+	mode = NormalMode
+	return true
 }
 
 func putRune(r rune, x, y int) {

@@ -93,7 +93,7 @@ func Remove() (possible bool, requiredUpdates int) {
 	}
 	length--
 	cursorIndex--
-	return true, computeRequiredUpdates() + 1
+	return true, computeRequiredUpdates()
 }
 
 func computeRequiredUpdates() (requiredUpdates int) {
