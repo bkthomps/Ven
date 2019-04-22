@@ -23,7 +23,6 @@ SOFTWARE.
 package main
 
 import (
-	"github.com/bkthomps/Ven/buffer"
 	"github.com/bkthomps/Ven/screen"
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
@@ -37,7 +36,6 @@ func main() {
 	}
 	encoding.Register()
 	quit := make(chan struct{})
-	buffer.Init()
 	screen.Init(s, quit)
 	<-quit
 	s.Fini()
