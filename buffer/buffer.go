@@ -23,30 +23,53 @@ SOFTWARE.
 package buffer
 
 import (
+	"fmt"
+	"io/ioutil"
 	"math"
+	"os"
 )
 
 const resizeRatio = 1.5
 const resizeAt = 0.75
 const minimumSize = 16
 
+var fileName string
 var buffer []rune
 var capacity = 0
 var length = 0
 var cursorIndex = 0    // The empty byte at the start of the gap
 var backBlockIndex = 0 // The byte after the end of the gap
 
-func Init() {
-	// TODO: Do some file io, get the file and its size
-	fileSize := 0
-	length = fileSize
+func Init(name string) {
+	fileName = name
+	dat, err := ioutil.ReadFile(name)
+	data := ""
+	if !os.IsNotExist(err) {
+		data = string(dat)
+	}
+	arr := []rune(data)
+	length = len(arr)
 	capacity = int(math.Max(float64(length)*resizeRatio, minimumSize))
-	backBlockIndex = capacity
+	backBlockIndex = capacity - length
 	buffer = make([]rune, capacity)
-	// TODO: copy the file to the back of the block since cursor starts at 0
+	copy(buffer[backBlockIndex:], arr)
 }
 
-func Add(add rune) {
+func Save() (err error) {
+	file, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	var arr []rune
+	arr = make([]rune, length)
+	copy(arr[:cursorIndex], buffer[:cursorIndex])
+	copy(arr[cursorIndex:], buffer[backBlockIndex:])
+	fmt.Fprintf(file, string(arr))
+	return nil
+}
+
+func Add(add rune) (requiredUpdates int) {
 	buffer[cursorIndex] = add
 	length++
 	cursorIndex++
@@ -60,15 +83,23 @@ func Add(add rune) {
 		backBlockIndex = newBackBlockIndex
 		buffer = temp
 	}
+	return computeRequiredUpdates()
 }
 
-func Remove() (possible bool) {
+func Remove() (possible bool, requiredUpdates int) {
 	if cursorIndex == 0 {
-		return false
+		return false, 0
 	}
 	length--
 	cursorIndex--
-	return true
+	return true, computeRequiredUpdates() + 1
+}
+
+func computeRequiredUpdates() (requiredUpdates int) {
+	for i := backBlockIndex; i < capacity && buffer[i] != '\n'; i++ {
+		requiredUpdates++
+	}
+	return requiredUpdates
 }
 
 func Left() (possible bool) {

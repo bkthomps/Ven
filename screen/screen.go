@@ -30,6 +30,7 @@ import (
 )
 
 const errorCommand = "-- Invalid Command --"
+const errorSave = "-- Could Not Save File --"
 
 var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
 var cursorStyle = terminalStyle.Background(tcell.ColorDarkGray)
@@ -59,11 +60,11 @@ func Init(s tcell.Screen, quit chan struct{}) {
 	if e := screen.Init(); e != nil {
 		log.Fatal(e)
 	}
-	buffer.Init() // TODO: should set initial screen
+	buffer.Init("file.txt") // TODO: should set initial screen
 	screen.SetStyle(terminalStyle)
 	screen.Show()
 	updateProperties()
-	screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
+	setColor(xCursor, yCursor, cursorStyle)
 	displayMode()
 	go listener(quit)
 }
@@ -76,23 +77,33 @@ func updateProperties() {
 	}
 }
 
+func setColor(x, y int, s tcell.Style) {
+	r, _, _, _ := screen.GetContent(x, y)
+	screen.SetContent(x, y, r, nil, s)
+}
+
+func displayError(error string) {
+	putCommand(blankLine)
+	putCommand(error)
+	mode = CommandErrorMode
+	displayMode()
+}
+
 func displayMode() {
 	switch mode {
 	case InsertMode:
-		screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
+		setColor(xCursor, yCursor, cursorStyle)
 		putCommand("-- INSERT --")
 	case NormalMode:
-		screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
+		setColor(xCursor, yCursor, cursorStyle)
 		putCommand(blankLine)
 	case CommandMode:
-		screen.SetContent(xCursor, yCursor, ' ', nil, terminalStyle)
+		setColor(xCursor, yCursor, terminalStyle)
 		putCommand(blankLine)
 		putCommand(command)
-		screen.SetContent(xCommandCursor, screenHeight-1, ' ', nil, cursorStyle)
+		setColor(xCommandCursor, screenHeight-1, cursorStyle)
 	case CommandErrorMode:
-		screen.SetContent(xCommandCursor, screenHeight-1, ' ', nil, terminalStyle)
-		putCommand(blankLine)
-		putCommand(errorCommand)
+		setColor(xCommandCursor, screenHeight-1, terminalStyle)
 	}
 	screen.Sync()
 }
@@ -179,7 +190,7 @@ func commandMode(ev *tcell.EventKey, quit chan struct{}) {
 }
 
 func bufferAction(ev *tcell.EventKey) {
-	screen.SetContent(xCursor, yCursor, ' ', nil, terminalStyle)
+	setColor(xCursor, yCursor, terminalStyle)
 	// TODO: add cases for scrolling
 	switch ev.Key() {
 	case tcell.KeyDown:
@@ -203,38 +214,53 @@ func bufferAction(ev *tcell.EventKey) {
 			xCursor++
 		}
 	case tcell.KeyDEL:
-		possible := buffer.Remove()
-		putRune(' ')
+		possible, requiredUpdates := buffer.Remove()
 		if possible {
 			if ev.Rune() != '\n' {
 				xCursor--
+				updateLine(requiredUpdates)
 			} else {
 				// TODO: xCursor goes to end, count lines
 				yCursor--
-				// TODO: shift everything back
+				// TODO: shift all lines back
 			}
 		}
 	default:
-		buffer.Add(ev.Rune())
+		requiredUpdates := buffer.Add(ev.Rune())
 		putRune(ev.Rune())
 		if ev.Rune() != '\n' {
+			updateLine(requiredUpdates)
 			xCursor++
 		} else {
 			xCursor = 0
 			yCursor++
-			// TODO: shift everything over
+			// TODO: shift all lines over
 		}
 	}
-	screen.SetContent(xCursor, yCursor, ' ', nil, cursorStyle)
+	setColor(xCursor, yCursor, cursorStyle)
+}
+
+func updateLine(requiredUpdates int) {
+	for i := xCursor; i < xCursor+requiredUpdates; i++ {
+		r, _, _, _ := screen.GetContent(i+1, yCursor)
+		screen.SetContent(i, yCursor, r, nil, terminalStyle)
+	}
 }
 
 func executeCommand(quit chan struct{}) {
 	switch command {
 	case ":q!":
 		close(quit)
+	case ":w":
+		// TODO: implement the version with file name also
+		err := buffer.Save()
+		if err != nil {
+			displayError(errorSave)
+		} else {
+			mode = NormalMode
+		}
 	default:
-		mode = CommandErrorMode
-		displayMode()
+		displayError(errorCommand)
 	}
 }
 
