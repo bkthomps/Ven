@@ -40,19 +40,20 @@ var length = 0
 var cursorIndex = 0    // The empty byte at the start of the gap
 var backBlockIndex = 0 // The byte after the end of the gap
 
-func Init(name string) {
+func Init(name string) (arr []rune) {
 	fileName = name
 	dat, err := ioutil.ReadFile(name)
 	data := ""
 	if !os.IsNotExist(err) {
 		data = string(dat)
 	}
-	arr := []rune(data)
+	arr = []rune(data)
 	length = len(arr)
 	capacity = int(math.Max(float64(length)*resizeRatio, minimumSize))
 	backBlockIndex = capacity - length
 	buffer = make([]rune, capacity)
 	copy(buffer[backBlockIndex:], arr)
+	return arr
 }
 
 func Save() (err error) {

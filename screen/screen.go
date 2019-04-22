@@ -60,13 +60,28 @@ func Init(s tcell.Screen, quit chan struct{}) {
 	if e := screen.Init(); e != nil {
 		log.Fatal(e)
 	}
-	buffer.Init("file.txt") // TODO: should set initial screen
+	arr := buffer.Init("file.txt") // TODO: should set initial screen
 	screen.SetStyle(terminalStyle)
 	screen.Show()
 	updateProperties()
+	setInitial(arr)
 	setColor(xCursor, yCursor, cursorStyle)
 	displayMode()
 	go listener(quit)
+}
+
+func setInitial(arr []rune) {
+	x, y := 0, 0
+	for i := 0; i < len(arr) || i == screenHeight-1; i++ {
+		cur := arr[i]
+		if cur == '\n' {
+			y++
+			x = 0
+		} else if x < screenWidth {
+			putRune(cur, x, y)
+			x++
+		}
+	}
 }
 
 func updateProperties() {
@@ -227,7 +242,7 @@ func bufferAction(ev *tcell.EventKey) {
 		}
 	default:
 		requiredUpdates := buffer.Add(ev.Rune())
-		putRune(ev.Rune())
+		putRune(ev.Rune(), xCursor, yCursor)
 		if ev.Rune() != '\n' {
 			updateLine(requiredUpdates)
 			xCursor++
@@ -264,8 +279,8 @@ func executeCommand(quit chan struct{}) {
 	}
 }
 
-func putRune(r rune) {
-	puts(screen, terminalStyle, xCursor, yCursor, string(r))
+func putRune(r rune, x, y int) {
+	puts(screen, terminalStyle, x, y, string(r))
 }
 
 // This function is from: https://github.com/gdamore/tcell/blob/master/_demos/unicode.go
