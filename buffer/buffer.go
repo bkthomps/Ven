@@ -66,7 +66,7 @@ func Save() (err error) {
 	arr = make([]rune, length)
 	copy(arr[:cursorIndex], buffer[:cursorIndex])
 	copy(arr[cursorIndex:], buffer[backBlockIndex:])
-	fmt.Fprintf(file, string(arr))
+	_, err = fmt.Fprintf(file, string(arr))
 	return nil
 }
 
@@ -123,12 +123,49 @@ func Right() (possible bool) {
 	return true
 }
 
-func Up() (possible bool) {
-	// TODO: implement
-	return false
+func Up(oldX int) (possible bool, newX int) {
+	i := cursorIndex - 1
+	for i > 0 && buffer[i] != '\n' {
+		i--
+	}
+	if i == 0 {
+		return false, oldX
+	}
+	i--
+	lineLength := 0
+	for j := i; j > 0 && buffer[j] != '\n'; j-- {
+		lineLength++
+	}
+	if oldX < lineLength {
+		i -= lineLength - oldX
+	}
+	delta := cursorIndex - i
+	temp := buffer[i:cursorIndex]
+	copy(buffer[backBlockIndex-delta:backBlockIndex], temp)
+	cursorIndex = i
+	backBlockIndex -= delta
+	return true, oldX
 }
 
-func Down() (possible bool) {
-	// TODO: implement
-	return false
+func Down(oldX int) (possible bool, newX int) {
+	i := backBlockIndex
+	for i < capacity && buffer[i] != '\n' {
+		i++
+	}
+	if i == capacity {
+		return false, oldX
+	}
+	i++
+	if i == capacity {
+		return false, oldX
+	}
+	for newX = 0; newX < oldX && i < capacity && buffer[i] != '\n'; newX++ {
+		i++
+	}
+	temp := buffer[backBlockIndex:i]
+	delta := i - backBlockIndex
+	copy(buffer[cursorIndex:cursorIndex+delta], temp)
+	cursorIndex += delta
+	backBlockIndex = i
+	return true, newX
 }

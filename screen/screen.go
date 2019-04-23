@@ -32,6 +32,15 @@ import (
 const errorCommand = "-- Invalid Command --"
 const errorSave = "-- Could Not Save File --"
 
+const (
+	InsertMode = iota
+	NormalMode
+	CommandMode
+	CommandErrorMode
+)
+
+var mode = NormalMode
+
 var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
 var cursorStyle = terminalStyle.Background(tcell.ColorDarkGray)
 var screen tcell.Screen
@@ -45,15 +54,6 @@ var xCommandCursor = 0
 
 var blankLine = ""
 var command = ""
-
-const (
-	InsertMode = iota
-	NormalMode
-	CommandMode
-	CommandErrorMode
-)
-
-var mode = NormalMode
 
 func Init(s tcell.Screen, quit chan struct{}) {
 	screen = s
@@ -212,14 +212,24 @@ func bufferAction(ev *tcell.EventKey) {
 	// TODO: add cases for scrolling
 	switch ev.Key() {
 	case tcell.KeyDown:
-		possible := buffer.Down()
-		if possible {
-			yCursor++
+		if yCursor == screenHeight-2 {
+			// TODO: down scrolling
+		} else {
+			possible, x := buffer.Down(xCursor)
+			if possible {
+				yCursor++
+				xCursor = x
+			}
 		}
 	case tcell.KeyUp:
-		possible := buffer.Up()
-		if possible {
-			yCursor--
+		if yCursor == 0 {
+			// TODO: up scrolling
+		} else {
+			possible, x := buffer.Up(xCursor)
+			if possible {
+				yCursor--
+				xCursor = x
+			}
 		}
 	case tcell.KeyLeft:
 		possible := buffer.Left()
