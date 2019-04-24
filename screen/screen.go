@@ -212,21 +212,21 @@ func bufferAction(ev *tcell.EventKey) {
 	// TODO: add cases for scrolling
 	switch ev.Key() {
 	case tcell.KeyDown:
-		if yCursor == screenHeight-2 {
-			// TODO: down scrolling
-		} else {
-			possible, x := buffer.Down(xCursor)
-			if possible {
+		possible, x := buffer.Down(xCursor)
+		if possible {
+			if yCursor == screenHeight-2 {
+				// TODO: down scrolling
+			} else {
 				yCursor++
 				xCursor = x
 			}
 		}
 	case tcell.KeyUp:
-		if yCursor == 0 {
-			// TODO: up scrolling
-		} else {
-			possible, x := buffer.Up(xCursor)
-			if possible {
+		possible, x := buffer.Up(xCursor)
+		if possible {
+			if yCursor == 0 {
+				// TODO: up scrolling
+			} else {
 				yCursor--
 				xCursor = x
 			}
@@ -244,7 +244,7 @@ func bufferAction(ev *tcell.EventKey) {
 	case tcell.KeyDEL:
 		possible, requiredUpdates := buffer.Remove()
 		if possible {
-			if ev.Rune() != '\n' {
+			if xCursor != 0 {
 				xCursor--
 				shiftLeft(requiredUpdates)
 			} else {
@@ -253,17 +253,16 @@ func bufferAction(ev *tcell.EventKey) {
 				// TODO: shift all lines back
 			}
 		}
+	case tcell.KeyEnter:
+		buffer.Add('\n')
+		xCursor = 0
+		yCursor++
+		// TODO: shift all lines over
 	default:
 		x, y := xCursor, yCursor
 		requiredUpdates := buffer.Add(ev.Rune())
-		if ev.Rune() != '\n' {
-			xCursor++
-			shiftRight(requiredUpdates)
-		} else {
-			xCursor = 0
-			yCursor++
-			// TODO: shift all lines over
-		}
+		xCursor++
+		shiftRight(requiredUpdates)
 		putRune(ev.Rune(), x, y)
 	}
 	setColor(xCursor, yCursor, cursorStyle)

@@ -124,7 +124,7 @@ func Right() (possible bool) {
 }
 
 func Up(oldX int) (possible bool, newX int) {
-	i := cursorIndex - 1
+	i := cursorIndex
 	for i > 0 && buffer[i] != '\n' {
 		i--
 	}
