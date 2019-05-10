@@ -156,7 +156,12 @@ func listener(quit chan struct{}) {
 func insertMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
+		setColor(xCursor, yCursor, terminalStyle)
 		mode = NormalMode
+		possible := buffer.Left()
+		if possible {
+			xCursor--
+		}
 	default:
 		bufferAction(ev)
 	}
@@ -212,7 +217,7 @@ func bufferAction(ev *tcell.EventKey) {
 	// TODO: add cases for scrolling
 	switch ev.Key() {
 	case tcell.KeyDown:
-		possible, x := buffer.Down(xCursor)
+		possible, x := buffer.Down(xCursor, mode == InsertMode)
 		if possible {
 			if yCursor == screenHeight-2 {
 				// TODO: down scrolling
@@ -237,7 +242,7 @@ func bufferAction(ev *tcell.EventKey) {
 			xCursor--
 		}
 	case tcell.KeyRight:
-		possible := buffer.Right()
+		possible := buffer.Right(mode == InsertMode)
 		if possible {
 			xCursor++
 		}

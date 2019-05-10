@@ -113,8 +113,14 @@ func Left() (possible bool) {
 	return true
 }
 
-func Right() (possible bool) {
-	if backBlockIndex == capacity || buffer[backBlockIndex] == '\n' {
+func Right(isInsert bool) (possible bool) {
+	limit := capacity
+	indexAdd := 0
+	if isInsert {
+		limit--
+		indexAdd++
+	}
+	if backBlockIndex == limit || buffer[backBlockIndex+indexAdd] == '\n' {
 		return false
 	}
 	buffer[cursorIndex] = buffer[backBlockIndex]
@@ -147,19 +153,25 @@ func Up(oldX int) (possible bool, newX int) {
 	return true, oldX
 }
 
-func Down(oldX int) (possible bool, newX int) {
+func Down(oldX int, isInsert bool) (possible bool, newX int) {
 	i := backBlockIndex
 	for i < capacity && buffer[i] != '\n' {
 		i++
 	}
-	if i == capacity {
+	limit := capacity
+	indexAdd := 0
+	if isInsert {
+		limit--
+		indexAdd++
+	}
+	if i == limit {
 		return false, oldX
 	}
 	i++
-	if i == capacity {
+	if i == limit {
 		return false, oldX
 	}
-	for newX = 0; newX < oldX && i < capacity && buffer[i] != '\n'; newX++ {
+	for newX = 0; newX < oldX && i < limit && buffer[i+indexAdd] != '\n'; newX++ {
 		i++
 	}
 	temp := buffer[backBlockIndex:i]
