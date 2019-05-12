@@ -142,15 +142,18 @@ func Up(oldX int) (possible bool, newX int) {
 	for j := i; j > 0 && buffer[j] != '\n'; j-- {
 		lineLength++
 	}
-	if oldX < lineLength {
-		i -= lineLength - oldX
+	if oldX > lineLength {
+		newX = lineLength + 1
+	} else {
+		newX = oldX
 	}
+	i += newX - lineLength
 	delta := cursorIndex - i
 	temp := buffer[i:cursorIndex]
 	copy(buffer[backBlockIndex-delta:backBlockIndex], temp)
 	cursorIndex = i
 	backBlockIndex -= delta
-	return true, oldX
+	return true, newX
 }
 
 func Down(oldX int, isInsert bool) (possible bool, newX int) {
