@@ -33,13 +33,13 @@ const errorCommand = "-- Invalid Command --"
 const errorSave = "-- Could Not Save File --"
 
 const (
-	InsertMode = iota
-	NormalMode
-	CommandMode
-	CommandErrorMode
+	insertMode = iota
+	normalMode
+	commandMode
+	commandErrorMode
 )
 
-var mode = NormalMode
+var mode = normalMode
 
 var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
 var cursorStyle = terminalStyle.Background(tcell.ColorDarkGray)
@@ -103,24 +103,24 @@ func setColor(x, y int, s tcell.Style) {
 func displayError(error string) {
 	putCommand(blankLine)
 	putCommand(error)
-	mode = CommandErrorMode
+	mode = commandErrorMode
 	displayMode()
 }
 
 func displayMode() {
 	switch mode {
-	case InsertMode:
+	case insertMode:
 		setColor(xCursor, yCursor, cursorStyle)
 		putCommand("-- INSERT --")
-	case NormalMode:
+	case normalMode:
 		setColor(xCursor, yCursor, cursorStyle)
 		putCommand(blankLine)
-	case CommandMode:
+	case commandMode:
 		setColor(xCursor, yCursor, terminalStyle)
 		putCommand(blankLine)
 		putCommand(command)
 		setColor(xCommandCursor, screenHeight-1, cursorStyle)
-	case CommandErrorMode:
+	case commandErrorMode:
 		setColor(xCommandCursor, screenHeight-1, terminalStyle)
 	}
 	screen.Sync()
@@ -136,14 +136,14 @@ func listener(quit chan struct{}) {
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
 			switch mode {
-			case InsertMode:
-				insertMode(ev)
-			case NormalMode:
-				normalMode(ev)
-			case CommandMode:
-				commandMode(ev, quit)
-			case CommandErrorMode:
-				mode = CommandMode
+			case insertMode:
+				executeinsertMode(ev)
+			case normalMode:
+				executenormalMode(ev)
+			case commandMode:
+				executeCommandMode(ev, quit)
+			case commandErrorMode:
+				mode = commandMode
 			}
 			displayMode()
 		case *tcell.EventResize:
@@ -153,11 +153,11 @@ func listener(quit chan struct{}) {
 	}
 }
 
-func insertMode(ev *tcell.EventKey) {
+func executeinsertMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
 		setColor(xCursor, yCursor, terminalStyle)
-		mode = NormalMode
+		mode = normalMode
 		possible := buffer.Left()
 		if possible {
 			xCursor--
@@ -167,33 +167,33 @@ func insertMode(ev *tcell.EventKey) {
 	}
 }
 
-func normalMode(ev *tcell.EventKey) {
+func executenormalMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
 		bufferAction(ev)
 	default:
 		switch ev.Rune() {
 		case 'i':
-			mode = InsertMode
+			mode = insertMode
 		case ':':
-			mode = CommandMode
+			mode = commandMode
 			command = ":"
 			xCommandCursor = 1
 		}
 	}
 }
 
-func commandMode(ev *tcell.EventKey, quit chan struct{}) {
+func executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		mode = NormalMode
+		mode = normalMode
 	case tcell.KeyEnter:
 		executeCommand(quit)
 	case tcell.KeyDEL:
 		sz := len(command)
 		command = command[:sz-1]
 		if sz == 1 {
-			mode = NormalMode
+			mode = normalMode
 		}
 		xCommandCursor--
 	case tcell.KeyDown, tcell.KeyUp:
@@ -217,60 +217,73 @@ func bufferAction(ev *tcell.EventKey) {
 	// TODO: add cases for scrolling
 	switch ev.Key() {
 	case tcell.KeyDown:
-		possible, x := buffer.Down(xCursor, mode == InsertMode)
-		if possible {
-			if yCursor == screenHeight-2 {
-				// TODO: down scrolling
-			} else {
-				yCursor++
-				xCursor = x
-			}
-		}
+		actionDown()
 	case tcell.KeyUp:
-		possible, x := buffer.Up(xCursor, mode == InsertMode)
-		if possible {
-			if yCursor == 0 {
-				// TODO: up scrolling
-			} else {
-				yCursor--
-				xCursor = x
-			}
-		}
+		actionUp()
 	case tcell.KeyLeft:
-		possible := buffer.Left()
-		if possible {
-			xCursor--
-		}
+		actionLeft()
 	case tcell.KeyRight:
-		possible := buffer.Right(mode == InsertMode)
-		if possible {
-			xCursor++
-		}
+		actionRight()
 	case tcell.KeyDEL:
-		possible, requiredUpdates := buffer.Remove()
-		if possible {
-			if xCursor != 0 {
-				xCursor--
-				shiftLeft(requiredUpdates)
-			} else {
-				// TODO: xCursor goes to end, count lines
-				yCursor--
-				// TODO: shift all lines back
-			}
-		}
+		actionDelete()
 	case tcell.KeyEnter:
-		buffer.Add('\n')
-		xCursor = 0
-		yCursor++
-		// TODO: shift all lines over
+		actionEnter()
 	default:
-		x, y := xCursor, yCursor
-		requiredUpdates := buffer.Add(ev.Rune())
-		xCursor++
-		shiftRight(requiredUpdates)
-		putRune(ev.Rune(), x, y)
+		actionKeyPress(ev)
 	}
 	setColor(xCursor, yCursor, cursorStyle)
+}
+
+func actionDown() {
+	possible, x := buffer.Down(xCursor, mode == insertMode)
+	if possible {
+		if yCursor == screenHeight-2 {
+			// TODO: down scrolling
+		} else {
+			yCursor++
+			xCursor = x
+		}
+	}
+}
+
+func actionUp() {
+	possible, x := buffer.Up(xCursor, mode == insertMode)
+	if possible {
+		if yCursor == 0 {
+			// TODO: up scrolling
+		} else {
+			yCursor--
+			xCursor = x
+		}
+	}
+}
+
+func actionLeft() {
+	possible := buffer.Left()
+	if possible {
+		xCursor--
+	}
+}
+
+func actionRight() {
+	possible := buffer.Right(mode == insertMode)
+	if possible {
+		xCursor++
+	}
+}
+
+func actionDelete() {
+	possible, requiredUpdates := buffer.Remove()
+	if possible {
+		if xCursor != 0 {
+			xCursor--
+			shiftLeft(requiredUpdates)
+		} else {
+			// TODO: xCursor goes to end, count lines
+			yCursor--
+			// TODO: shift all lines back
+		}
+	}
 }
 
 func shiftLeft(requiredUpdates int) {
@@ -278,6 +291,21 @@ func shiftLeft(requiredUpdates int) {
 		r, _, _, _ := screen.GetContent(i+1, yCursor)
 		screen.SetContent(i, yCursor, r, nil, terminalStyle)
 	}
+}
+
+func actionEnter() {
+	buffer.Add('\n')
+	xCursor = 0
+	yCursor++
+	// TODO: shift all lines over
+}
+
+func actionKeyPress(ev *tcell.EventKey) {
+	x, y := xCursor, yCursor
+	requiredUpdates := buffer.Add(ev.Rune())
+	xCursor++
+	shiftRight(requiredUpdates)
+	putRune(ev.Rune(), x, y)
 }
 
 func shiftRight(requiredUpdates int) {
@@ -311,7 +339,7 @@ func write() (saved bool) {
 		displayError(errorSave)
 		return false
 	}
-	mode = NormalMode
+	mode = normalMode
 	return true
 }
 

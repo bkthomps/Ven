@@ -67,6 +67,9 @@ func Save() (err error) {
 	copy(arr[:cursorIndex], buffer[:cursorIndex])
 	copy(arr[cursorIndex:], buffer[backBlockIndex:])
 	_, err = fmt.Fprintf(file, string(arr))
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
