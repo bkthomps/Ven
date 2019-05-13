@@ -137,9 +137,9 @@ func listener(quit chan struct{}) {
 		case *tcell.EventKey:
 			switch mode {
 			case insertMode:
-				executeinsertMode(ev)
+				executeInsertMode(ev)
 			case normalMode:
-				executenormalMode(ev)
+				executeNormalMode(ev)
 			case commandMode:
 				executeCommandMode(ev, quit)
 			case commandErrorMode:
@@ -153,7 +153,7 @@ func listener(quit chan struct{}) {
 	}
 }
 
-func executeinsertMode(ev *tcell.EventKey) {
+func executeInsertMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
 		setColor(xCursor, yCursor, terminalStyle)
@@ -167,7 +167,7 @@ func executeinsertMode(ev *tcell.EventKey) {
 	}
 }
 
-func executenormalMode(ev *tcell.EventKey) {
+func executeNormalMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
 		bufferAction(ev)
