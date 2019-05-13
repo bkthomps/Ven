@@ -227,7 +227,7 @@ func bufferAction(ev *tcell.EventKey) {
 			}
 		}
 	case tcell.KeyUp:
-		possible, x := buffer.Up(xCursor)
+		possible, x := buffer.Up(xCursor, mode == InsertMode)
 		if possible {
 			if yCursor == 0 {
 				// TODO: up scrolling
