@@ -273,15 +273,26 @@ func actionRight() {
 }
 
 func actionDelete() {
-	possible, requiredUpdates := buffer.Remove()
+	possible, newX, requiredUpdates := buffer.Remove()
 	if possible {
 		if xCursor != 0 {
 			xCursor--
 			shiftLeft(requiredUpdates)
 		} else {
-			// TODO: xCursor goes to end, count lines
+			xCursor = newX
 			yCursor--
-			// TODO: shift all lines back
+			for x := 0; x < requiredUpdates; x++ {
+				r, _, _, _ := screen.GetContent(x, yCursor+1)
+				screen.SetContent(x+newX, yCursor, r, nil, terminalStyle)
+			}
+			for y := yCursor + 1; y < screenHeight-2; y++ {
+				for x := 0; x < screenWidth; x++ {
+					r, _, _, _ := screen.GetContent(x, y+1)
+					screen.SetContent(x, y, r, nil, terminalStyle)
+				}
+			}
+			putString(blankLine, 0, screenHeight-2)
+			putString(buffer.GetBottom(yCursor, screenHeight-2), 0, screenHeight-2)
 		}
 	}
 }
@@ -295,9 +306,19 @@ func shiftLeft(requiredUpdates int) {
 
 func actionEnter() {
 	buffer.Add('\n')
+	for y := screenHeight - 2; y > yCursor+1; y-- {
+		for x := 0; x < screenWidth; x++ {
+			r, _, _, _ := screen.GetContent(x, y-1)
+			screen.SetContent(x, y, r, nil, terminalStyle)
+		}
+	}
+	for x := 0; x < screenWidth; x++ {
+		r, _, _, _ := screen.GetContent(x+xCursor, yCursor)
+		screen.SetContent(x, yCursor+1, r, nil, terminalStyle)
+		screen.SetContent(x+xCursor, yCursor, ' ', nil, terminalStyle)
+	}
 	xCursor = 0
 	yCursor++
-	// TODO: shift all lines over
 }
 
 func actionKeyPress(ev *tcell.EventKey) {
@@ -345,6 +366,10 @@ func write() (saved bool) {
 
 func putRune(r rune, x, y int) {
 	puts(screen, terminalStyle, x, y, string(r))
+}
+
+func putString(s string, x, y int) {
+	puts(screen, terminalStyle, x, y, s)
 }
 
 // This function is from: https://github.com/gdamore/tcell/blob/master/_demos/unicode.go

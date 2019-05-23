@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"strings"
 )
 
 const resizeRatio = 1.5
@@ -99,13 +100,21 @@ func Add(add rune) (requiredUpdates int) {
 	return computeRequiredUpdates()
 }
 
-func Remove() (possible bool, requiredUpdates int) {
+func Remove() (possible bool, newX, requiredUpdates int) {
 	if cursorIndex == 0 {
-		return false, 0
+		return false, 0, 0
 	}
 	length--
 	cursorIndex--
-	return true, computeRequiredUpdates()
+	return true, computeNewX(), computeRequiredUpdates()
+}
+
+func computeNewX() (newX int) {
+	newX = 0
+	for i := cursorIndex - 1; i >= 0 && buffer[i] != '\n'; i-- {
+		newX++
+	}
+	return newX
 }
 
 func computeRequiredUpdates() (requiredUpdates int) {
@@ -207,4 +216,25 @@ func computeOffset(isInsert bool) (offset int) {
 		return 0
 	}
 	return 1
+}
+
+func GetBottom(currentY, getY int) (bottom string) {
+	var i int
+	deltaY := getY - currentY
+	for i = backBlockIndex; i < capacity; i++ {
+		if buffer[i] == '\n' {
+			deltaY--
+			if deltaY == 0 {
+				break
+			}
+		}
+	}
+	var sb strings.Builder
+	for j := i + 1; j < capacity && buffer[j] != '\n'; j++ {
+		sb.WriteRune(buffer[j])
+	}
+	if sb.Len() == 0 {
+		return "~"
+	}
+	return sb.String()
 }
