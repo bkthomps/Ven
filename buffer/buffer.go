@@ -73,6 +73,15 @@ func Save() (err error) {
 	return nil
 }
 
+func Log(name, text string) {
+	file, err := os.Create(name)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = fmt.Fprintf(file, text)
+}
+
 func Add(add rune) (requiredUpdates int) {
 	buffer[cursorIndex] = add
 	length++
@@ -129,31 +138,45 @@ func Right(isInsert bool) (possible bool) {
 
 func Up(oldX int, isInsert bool) (possible bool, newX int) {
 	i := cursorIndex - 1
+	count := 0
 	for i > 0 && buffer[i] != '\n' {
 		i--
-	}
-	if i == 0 {
-		return false, oldX
+		count++
 	}
 	i--
-	lineLength := 0
-	for j := i; j > 0 && buffer[j-1] != '\n'; j-- {
-		lineLength++
+	count++
+	if i < 0 {
+		return false, oldX
 	}
-	if oldX > lineLength {
-		newX = lineLength
+	if buffer[i] == '\n' {
+		temp := buffer[i+1 : cursorIndex]
+		copy(buffer[backBlockIndex-count:backBlockIndex], temp)
+		cursorIndex = i + 1
+		backBlockIndex -= count
+		return true, 0
+	}
+	lineLen := 0
+	for j := i; j > 0 && buffer[j-1] != '\n'; j-- {
+		i--
+		count++
+		lineLen++
+	}
+	if lineLen < oldX {
+		newX = lineLen
 		if isInsert {
 			newX++
 		}
 	} else {
 		newX = oldX
 	}
-	i += newX - lineLength
-	delta := cursorIndex - i
-	temp := buffer[i:cursorIndex]
-	copy(buffer[backBlockIndex-delta:backBlockIndex], temp)
-	cursorIndex = i
-	backBlockIndex -= delta
+	i += newX
+	count -= newX
+	i--
+	count++
+	temp := buffer[i+1 : cursorIndex]
+	copy(buffer[backBlockIndex-count:backBlockIndex], temp)
+	cursorIndex = i + 1
+	backBlockIndex -= count
 	return true, newX
 }
 
