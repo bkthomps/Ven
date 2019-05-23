@@ -164,7 +164,7 @@ func Down(oldX int, isInsert bool) (possible bool, newX int) {
 		i++
 	}
 	i++
-	if i >= capacity-offset {
+	if i >= capacity {
 		return false, oldX
 	}
 	for newX = 0; newX < oldX && i < capacity-offset && buffer[i+offset] != '\n'; newX++ {
