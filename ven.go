@@ -27,16 +27,21 @@ import (
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
 	"log"
+	"os"
 )
 
 func main() {
+	if len(os.Args) != 2 {
+		print("Usage: ven <file_name>\n")
+		return
+	}
 	s, e := tcell.NewScreen()
 	if e != nil {
 		log.Fatal(e)
 	}
 	encoding.Register()
 	quit := make(chan struct{})
-	screen.Init(s, quit)
+	screen.Init(s, quit, os.Args[1])
 	<-quit
 	s.Fini()
 }
