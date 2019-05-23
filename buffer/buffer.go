@@ -117,13 +117,8 @@ func Left() (possible bool) {
 }
 
 func Right(isInsert bool) (possible bool) {
-	limit := capacity
-	offset := 0
-	if !isInsert {
-		limit--
-		offset++
-	}
-	if backBlockIndex == limit || buffer[backBlockIndex+offset] == '\n' {
+	offset := computeOffset(isInsert)
+	if backBlockIndex == capacity-offset || buffer[backBlockIndex+offset] == '\n' {
 		return false
 	}
 	buffer[cursorIndex] = buffer[backBlockIndex]
@@ -133,9 +128,6 @@ func Right(isInsert bool) (possible bool) {
 }
 
 func Up(oldX int, isInsert bool) (possible bool, newX int) {
-	if cursorIndex == 0 {
-		return false, oldX
-	}
 	i := cursorIndex - 1
 	for i > 0 && buffer[i] != '\n' {
 		i--
@@ -166,24 +158,16 @@ func Up(oldX int, isInsert bool) (possible bool, newX int) {
 }
 
 func Down(oldX int, isInsert bool) (possible bool, newX int) {
+	offset := computeOffset(isInsert)
 	i := backBlockIndex
 	for i < capacity && buffer[i] != '\n' {
 		i++
 	}
-	limit := capacity
-	offset := 0
-	if !isInsert {
-		limit--
-		offset++
-	}
-	if i == limit {
-		return false, oldX
-	}
 	i++
-	if i == limit {
+	if i >= capacity-offset {
 		return false, oldX
 	}
-	for newX = 0; newX < oldX && i < limit && buffer[i+offset] != '\n'; newX++ {
+	for newX = 0; newX < oldX && i < capacity-offset && buffer[i+offset] != '\n'; newX++ {
 		i++
 	}
 	temp := buffer[backBlockIndex:i]
@@ -192,4 +176,11 @@ func Down(oldX int, isInsert bool) (possible bool, newX int) {
 	cursorIndex += delta
 	backBlockIndex = i
 	return true, newX
+}
+
+func computeOffset(isInsert bool) (offset int) {
+	if isInsert {
+		return 0
+	}
+	return 1
 }
