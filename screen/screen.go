@@ -295,9 +295,19 @@ func shiftLeft(requiredUpdates int) {
 
 func actionEnter() {
 	buffer.Add('\n')
+	for y := screenHeight - 2; y > yCursor+1; y-- {
+		for x := 0; x < screenWidth; x++ {
+			r, _, _, _ := screen.GetContent(x, y-1)
+			screen.SetContent(x, y, r, nil, terminalStyle)
+		}
+	}
+	for x := 0; x < screenWidth; x++ {
+		r, _, _, _ := screen.GetContent(x+xCursor, yCursor)
+		screen.SetContent(x, yCursor+1, r, nil, terminalStyle)
+		screen.SetContent(x+xCursor, yCursor, ' ', nil, terminalStyle)
+	}
 	xCursor = 0
 	yCursor++
-	// TODO: shift all lines over
 }
 
 func actionKeyPress(ev *tcell.EventKey) {
