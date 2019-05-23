@@ -73,6 +73,15 @@ func Save() (err error) {
 	return nil
 }
 
+func Log(name, text string) {
+	file, err := os.Create(name)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = fmt.Fprintf(file, text)
+}
+
 func Add(add rune) (requiredUpdates int) {
 	buffer[cursorIndex] = add
 	length++
@@ -117,13 +126,9 @@ func Left() (possible bool) {
 }
 
 func Right(isInsert bool) (possible bool) {
-	limit := capacity
-	offset := 0
-	if !isInsert {
-		limit--
-		offset++
-	}
-	if backBlockIndex == limit || buffer[backBlockIndex+offset] == '\n' {
+	offset := computeOffset(isInsert)
+	if backBlockIndex == capacity-offset || buffer[backBlockIndex] == '\n' ||
+		buffer[backBlockIndex+offset] == '\n' {
 		return false
 	}
 	buffer[cursorIndex] = buffer[backBlockIndex]
@@ -137,54 +142,57 @@ func Up(oldX int, isInsert bool) (possible bool, newX int) {
 		return false, oldX
 	}
 	i := cursorIndex - 1
+	count := 0
 	for i > 0 && buffer[i] != '\n' {
 		i--
-	}
-	if i == 0 {
-		return false, oldX
+		count++
 	}
 	i--
-	lineLength := 0
-	for j := i; j > 0 && buffer[j-1] != '\n'; j-- {
-		lineLength++
+	count++
+	if i == -1 || buffer[i] == '\n' {
+		temp := buffer[i+1 : cursorIndex]
+		copy(buffer[backBlockIndex-count:backBlockIndex], temp)
+		cursorIndex = i + 1
+		backBlockIndex -= count
+		return true, 0
 	}
-	if oldX > lineLength {
-		newX = lineLength
+	lineLen := 0
+	for j := i; j > 0 && buffer[j-1] != '\n'; j-- {
+		i--
+		count++
+		lineLen++
+	}
+	if lineLen < oldX {
+		newX = lineLen
 		if isInsert {
 			newX++
 		}
 	} else {
 		newX = oldX
 	}
-	i += newX - lineLength
-	delta := cursorIndex - i
-	temp := buffer[i:cursorIndex]
-	copy(buffer[backBlockIndex-delta:backBlockIndex], temp)
-	cursorIndex = i
-	backBlockIndex -= delta
+	i += newX - 1
+	count -= newX - 1
+	temp := buffer[i+1 : cursorIndex]
+	copy(buffer[backBlockIndex-count:backBlockIndex], temp)
+	cursorIndex = i + 1
+	backBlockIndex -= count
 	return true, newX
 }
 
 func Down(oldX int, isInsert bool) (possible bool, newX int) {
+	offset := computeOffset(isInsert)
 	i := backBlockIndex
 	for i < capacity && buffer[i] != '\n' {
 		i++
 	}
-	limit := capacity
-	offset := 0
-	if !isInsert {
-		limit--
-		offset++
-	}
-	if i == limit {
-		return false, oldX
-	}
 	i++
-	if i == limit {
+	if i >= capacity {
 		return false, oldX
 	}
-	for newX = 0; newX < oldX && i < limit && buffer[i+offset] != '\n'; newX++ {
-		i++
+	if buffer[i] != '\n' {
+		for newX = 0; newX < oldX && i < capacity-offset && buffer[i+offset] != '\n'; newX++ {
+			i++
+		}
 	}
 	temp := buffer[backBlockIndex:i]
 	delta := i - backBlockIndex
@@ -192,4 +200,11 @@ func Down(oldX int, isInsert bool) (possible bool, newX int) {
 	cursorIndex += delta
 	backBlockIndex = i
 	return true, newX
+}
+
+func computeOffset(isInsert bool) (offset int) {
+	if isInsert {
+		return 0
+	}
+	return 1
 }
