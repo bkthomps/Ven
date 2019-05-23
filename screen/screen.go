@@ -273,15 +273,25 @@ func actionRight() {
 }
 
 func actionDelete() {
-	possible, requiredUpdates := buffer.Remove()
+	possible, newX, requiredUpdates := buffer.Remove()
 	if possible {
 		if xCursor != 0 {
 			xCursor--
 			shiftLeft(requiredUpdates)
 		} else {
-			// TODO: xCursor goes to end, count lines
+			xCursor = newX
 			yCursor--
-			// TODO: shift all lines back
+			for x := 0; x < requiredUpdates; x++ {
+				r, _, _, _ := screen.GetContent(x, yCursor+1)
+				screen.SetContent(x+newX, yCursor, r, nil, terminalStyle)
+			}
+			for y := yCursor + 1; y < screenHeight-2; y++ {
+				for x := 0; x < screenWidth; x++ {
+					r, _, _, _ := screen.GetContent(x, y+1)
+					screen.SetContent(x, y, r, nil, terminalStyle)
+				}
+			}
+			// TODO: get bottom line
 		}
 	}
 }

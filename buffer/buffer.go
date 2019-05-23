@@ -99,13 +99,21 @@ func Add(add rune) (requiredUpdates int) {
 	return computeRequiredUpdates()
 }
 
-func Remove() (possible bool, requiredUpdates int) {
+func Remove() (possible bool, newX, requiredUpdates int) {
 	if cursorIndex == 0 {
-		return false, 0
+		return false, 0, 0
 	}
 	length--
 	cursorIndex--
-	return true, computeRequiredUpdates()
+	return true, computeNewX(), computeRequiredUpdates()
+}
+
+func computeNewX() (newX int) {
+	newX = 0
+	for i := cursorIndex - 1; i >= 0 && buffer[i] != '\n'; i-- {
+		newX++
+	}
+	return newX
 }
 
 func computeRequiredUpdates() (requiredUpdates int) {
