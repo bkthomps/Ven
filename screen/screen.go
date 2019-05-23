@@ -291,7 +291,8 @@ func actionDelete() {
 					screen.SetContent(x, y, r, nil, terminalStyle)
 				}
 			}
-			// TODO: get bottom line
+			putString(blankLine, 0, screenHeight-2)
+			putString(buffer.GetBottom(yCursor, screenHeight-2), 0, screenHeight-2)
 		}
 	}
 }
@@ -365,6 +366,10 @@ func write() (saved bool) {
 
 func putRune(r rune, x, y int) {
 	puts(screen, terminalStyle, x, y, string(r))
+}
+
+func putString(s string, x, y int) {
+	puts(screen, terminalStyle, x, y, s)
 }
 
 // This function is from: https://github.com/gdamore/tcell/blob/master/_demos/unicode.go
