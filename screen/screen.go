@@ -334,7 +334,18 @@ func actionEnter() {
 		screen.SetContent(x+xCursor, yCursor, ' ', nil, terminalStyle)
 	}
 	xCursor = 0
-	yCursor++
+	if yCursor != screenHeight-2 {
+		yCursor++
+	} else {
+		for y := 0; y < screenHeight-2; y++ {
+			for x := 0; x < screenWidth; x++ {
+				r, _, _, _ := screen.GetContent(x, y+1)
+				screen.SetContent(x, y, r, nil, terminalStyle)
+			}
+		}
+		putString(blankLine, 0, screenHeight-2)
+		putString(buffer.GetLine(), 0, screenHeight-2)
+	}
 }
 
 func actionKeyPress(ev *tcell.EventKey) {
