@@ -75,7 +75,7 @@ func setInitial(arr []rune) {
 		arr = append(arr, '\n')
 	}
 	x, y := 0, 0
-	for i := 0; i < len(arr) && y != screenHeight; i++ {
+	for i := 0; i < len(arr) && y < screenHeight-1; i++ {
 		cur := arr[i]
 		if cur == '\n' {
 			y++
@@ -240,7 +240,14 @@ func actionDown() {
 	possible, x := buffer.Down(xCursor, mode == insertMode)
 	if possible {
 		if yCursor == screenHeight-2 {
-			// TODO: down scrolling
+			for y := 0; y < screenHeight-2; y++ {
+				for x := 0; x < screenWidth; x++ {
+					r, _, _, _ := screen.GetContent(x, y+1)
+					screen.SetContent(x, y, r, nil, terminalStyle)
+				}
+			}
+			putString(blankLine, 0, screenHeight-2)
+			putString(buffer.GetBottom(yCursor, screenHeight-1), 0, screenHeight-2)
 		} else {
 			yCursor++
 			xCursor = x
