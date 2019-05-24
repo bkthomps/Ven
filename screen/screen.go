@@ -247,11 +247,11 @@ func actionDown() {
 				}
 			}
 			putString(blankLine, 0, screenHeight-2)
-			putString(buffer.GetBottom(yCursor, screenHeight-1), 0, screenHeight-2)
+			putString(buffer.GetLine(), 0, screenHeight-2)
 		} else {
 			yCursor++
-			xCursor = x
 		}
+		xCursor = x
 	}
 }
 
@@ -266,11 +266,11 @@ func actionUp() {
 				}
 			}
 			putString(blankLine, 0, 0)
-			putString(buffer.GetTop(yCursor, -1), 0, 0)
+			putString(buffer.GetLine(), 0, 0)
 		} else {
 			yCursor--
-			xCursor = x
 		}
+		xCursor = x
 	}
 }
 
