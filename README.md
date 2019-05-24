@@ -2,7 +2,7 @@
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/bkthomps/Ven)
 
 # Ven
-Vi Enhanced. An enhancement to vi which is similar to vim, but written in Go. Uses a gap buffer to store data.
+Vi Enhanced. A text editor which is an enhancement to vi, and is similar to vim, but written in Go. Uses a gap buffer to store the text.
 
 ## Installation
 ```
