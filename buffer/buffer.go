@@ -242,7 +242,7 @@ func GetBottom(currentY, getY int) (bottom string) {
 func GetLine() (previous string) {
 	var sb strings.Builder
 	startIndex := cursorIndex - 1
-	for i := startIndex; i > 0 && buffer[i] != '\n'; i-- {
+	for i := startIndex; i >= 0 && buffer[i] != '\n'; i-- {
 		startIndex--
 	}
 	for i := startIndex + 1; i < cursorIndex; i++ {
