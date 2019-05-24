@@ -156,6 +156,9 @@ func Up(oldX int, isInsert bool) (possible bool, newX int) {
 		i--
 		count++
 	}
+	if i == 0 && buffer[i] != '\n' {
+		return false, oldX
+	}
 	i--
 	count++
 	if i == -1 || buffer[i] == '\n' {
