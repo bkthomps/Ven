@@ -55,12 +55,12 @@ var xCommandCursor = 0
 var blankLine = ""
 var command = ""
 
-func Init(s tcell.Screen, quit chan struct{}) {
+func Init(s tcell.Screen, quit chan struct{}, fileName string) {
 	screen = s
 	if e := screen.Init(); e != nil {
 		log.Fatal(e)
 	}
-	arr := buffer.Init("file.txt") // TODO: should set initial screen
+	arr := buffer.Init(fileName)
 	screen.SetStyle(terminalStyle)
 	screen.Show()
 	updateProperties()
@@ -214,7 +214,6 @@ func executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 
 func bufferAction(ev *tcell.EventKey) {
 	setColor(xCursor, yCursor, terminalStyle)
-	// TODO: add cases for scrolling
 	switch ev.Key() {
 	case tcell.KeyDown:
 		actionDown()
@@ -341,10 +340,8 @@ func executeCommand(quit chan struct{}) {
 	case ":q!":
 		close(quit)
 	case ":w":
-		// TODO: implement the version with file name also
 		write()
 	case ":wq":
-		// TODO: implement the version with file name also
 		saved := write()
 		if saved {
 			close(quit)
