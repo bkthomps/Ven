@@ -156,6 +156,9 @@ func Up(oldX int, isInsert bool) (possible bool, newX int) {
 		i--
 		count++
 	}
+	if i == 0 && buffer[i] != '\n' {
+		return false, oldX
+	}
 	i--
 	count++
 	if i == -1 || buffer[i] == '\n' {
@@ -235,6 +238,21 @@ func GetBottom(currentY, getY int) (bottom string) {
 	}
 	if sb.Len() == 0 {
 		return "~"
+	}
+	return sb.String()
+}
+
+func GetLine() (previous string) {
+	var sb strings.Builder
+	startIndex := cursorIndex - 1
+	for i := startIndex; i >= 0 && buffer[i] != '\n'; i-- {
+		startIndex--
+	}
+	for i := startIndex + 1; i < cursorIndex; i++ {
+		sb.WriteRune(buffer[i])
+	}
+	for i := backBlockIndex; i < capacity && buffer[i] != '\n'; i++ {
+		sb.WriteRune(buffer[i])
 	}
 	return sb.String()
 }
