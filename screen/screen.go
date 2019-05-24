@@ -259,7 +259,14 @@ func actionUp() {
 	possible, x := buffer.Up(xCursor, mode == insertMode)
 	if possible {
 		if yCursor == 0 {
-			// TODO: up scrolling
+			for y := screenHeight - 2; y > 0; y-- {
+				for x := 0; x < screenWidth; x++ {
+					r, _, _, _ := screen.GetContent(x, y-1)
+					screen.SetContent(x, y, r, nil, terminalStyle)
+				}
+			}
+			putString(blankLine, 0, 0)
+			putString(buffer.GetTop(yCursor, -1), 0, 0)
 		} else {
 			yCursor--
 			xCursor = x

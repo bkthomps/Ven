@@ -218,6 +218,24 @@ func computeOffset(isInsert bool) (offset int) {
 	return 1
 }
 
+func GetTop(currentY, getY int) (top string) {
+	var i int
+	deltaY := currentY - getY
+	for i = cursorIndex - 1; i > 0; i-- {
+		if buffer[i] == '\n' {
+			deltaY--
+			if deltaY == 0 {
+				break
+			}
+		}
+	}
+	var sb strings.Builder
+	for j := i + 1; j < capacity && buffer[j] != '\n'; j++ {
+		sb.WriteRune(buffer[j])
+	}
+	return sb.String()
+}
+
 func GetBottom(currentY, getY int) (bottom string) {
 	var i int
 	deltaY := getY - currentY
