@@ -49,6 +49,9 @@ func Init(name string) (arr []rune) {
 		data = string(dat)
 	}
 	arr = []rune(data)
+	if len(arr) == 0 || arr[len(arr)-1] != '\n' {
+		arr = append(arr, '\n')
+	}
 	length = len(arr)
 	capacity = int(math.Max(float64(length)*resizeRatio, minimumSize))
 	backBlockIndex = capacity - length

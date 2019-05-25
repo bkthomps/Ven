@@ -71,9 +71,6 @@ func Init(s tcell.Screen, quit chan struct{}, fileName string) {
 }
 
 func setInitial(arr []rune) {
-	if len(arr) == 0 || arr[len(arr)-1] != '\n' {
-		arr = append(arr, '\n')
-	}
 	x, y := 0, 0
 	for i := 0; i < len(arr) && y < screenHeight-1; i++ {
 		cur := arr[i]
