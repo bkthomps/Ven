@@ -24,6 +24,7 @@ There are three modes: normal mode, command mode, and insertion mode.
 * `esc` to go into normal mode
 * `:w` to save the file
 * `:wq` to save and quit
+* `:q` to safely quit
 * `:q!` to force quit without saving
 
 ### Insertion Mode
