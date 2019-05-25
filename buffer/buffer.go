@@ -40,6 +40,7 @@ var capacity = 0
 var length = 0
 var cursorIndex = 0    // The empty byte at the start of the gap
 var backBlockIndex = 0 // The byte after the end of the gap
+var mutated = false
 
 func Init(name string) (arr []rune) {
 	fileName = name
@@ -74,6 +75,7 @@ func Save() (err error) {
 	if err != nil {
 		return err
 	}
+	mutated = false
 	return nil
 }
 
@@ -84,6 +86,10 @@ func Log(name, text string) {
 	}
 	defer file.Close()
 	_, _ = fmt.Fprintf(file, text)
+}
+
+func CanSafeQuit() (isPossible bool) {
+	return !mutated
 }
 
 func Add(add rune) (requiredUpdates int) {
@@ -100,6 +106,7 @@ func Add(add rune) (requiredUpdates int) {
 		backBlockIndex = newBackBlockIndex
 		buffer = temp
 	}
+	mutated = true
 	return computeRequiredUpdates()
 }
 
@@ -109,6 +116,7 @@ func Remove() (possible bool, newX, requiredUpdates int) {
 	}
 	length--
 	cursorIndex--
+	mutated = true
 	return true, computeNewX(), computeRequiredUpdates()
 }
 
@@ -118,6 +126,7 @@ func RemoveCurrent() (possible, xBack bool, requiredUpdates int) {
 	}
 	length--
 	backBlockIndex++
+	mutated = true
 	return true, buffer[backBlockIndex] == '\n', computeRequiredUpdates() + 1
 }
 

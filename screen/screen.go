@@ -31,6 +31,7 @@ import (
 
 const errorCommand = "-- Invalid Command --"
 const errorSave = "-- Could Not Save File --"
+const modifiedFile = "-- File Has Been Modified Since Last Save --"
 
 const (
 	insertMode = iota
@@ -378,6 +379,12 @@ func shiftRight(requiredUpdates int) {
 
 func executeCommand(quit chan struct{}) {
 	switch command {
+	case ":q":
+		if buffer.CanSafeQuit() {
+			close(quit)
+		} else {
+			displayError(modifiedFile)
+		}
 	case ":q!":
 		close(quit)
 	case ":w":
