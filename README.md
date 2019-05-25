@@ -17,6 +17,8 @@ There are three modes: normal mode, command mode, and insertion mode.
 * `:` to go into command mode
 * `x` delete character under the cursor
 * `X` delete character before the cursor
+* `dd` delete entire line
+* `D` delete rest of line
 
 ### Command Mode
 * `esc` to go into normal mode
