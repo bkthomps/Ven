@@ -203,10 +203,13 @@ func executeNormalMode(ev *tcell.EventKey) {
 				yCursor--
 				xCursor = 0
 				shiftUp()
-				yBack := buffer.RemoveLine()
+				yBack, isEmpty := buffer.RemoveLine()
 				yCursor++
 				if yBack {
 					actionUp()
+				}
+				if isEmpty {
+					screen.SetContent(0, 0, ' ', nil, terminalStyle)
 				}
 				oldCommand = '_'
 			} else {
