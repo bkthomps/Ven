@@ -85,7 +85,15 @@ func setInitial(arr []rune) {
 			x++
 		}
 	}
-	for i := y; i != screenHeight-1; i++ {
+	for i := y; i < screenHeight-1; i++ {
+		for j := 2; j < screenWidth; j++ {
+			r1, _, _, _ := screen.GetContent(j-2, i)
+			r2, _, _, _ := screen.GetContent(j-1, i)
+			if r1 == ' ' && r2 == ' ' {
+				break
+			}
+			screen.SetContent(j-2, i, ' ', nil, terminalStyle)
+		}
 		putRune('~', 0, i)
 	}
 }
