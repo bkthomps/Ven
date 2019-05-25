@@ -198,10 +198,10 @@ func executeNormalMode(ev *tcell.EventKey) {
 		switch ev.Rune() {
 		case 'i':
 			mode = insertMode
-		case ':':
+		case ':', '/':
 			mode = commandMode
-			command = ":"
-			xCommandCursor = 1
+			command = string(ev.Rune())
+			xCommandCursor = len(command)
 		case 'x':
 			isPossible, xBack, requiredUpdates := buffer.RemoveCurrent()
 			if isPossible {
@@ -424,6 +424,12 @@ func shiftRight(requiredUpdates int) {
 }
 
 func executeCommand(quit chan struct{}) {
+	if len(command) > 1 && command[0] == '/' {
+		search := command[1:]
+		// TODO: search for this string
+		buffer.Log("search.txt", search)
+		return
+	}
 	switch command {
 	case ":q":
 		if buffer.CanSafeQuit() {
