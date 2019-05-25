@@ -5,8 +5,8 @@
 Vi Enhanced. A text editor which is an enhancement to vi, and is similar to vim, but written in Go. Uses a gap buffer to store the text.
 
 ## Installation
-* Download golang if you do not have it yet
-* Run:
+* Download golang if you do not yet have it
+* Get Ven:
   ```
   go get github.com/bkthomps/Ven
   ```
@@ -22,6 +22,7 @@ Vi Enhanced. A text editor which is an enhancement to vi, and is similar to vim,
   ```
   alias ven='~/go/src/github.com/bkthomps/Ven/Ven'
   ```
+* Now you can run Ven anywhere with `ven <filename>`
 
 ## Commands
 There are three modes: normal mode, command mode, and insertion mode.
