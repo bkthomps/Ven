@@ -130,6 +130,20 @@ func RemoveCurrent() (possible, xBack bool, requiredUpdates int) {
 	return true, buffer[backBlockIndex] == '\n', computeRequiredUpdates() + 1
 }
 
+func RemoveLine() (yBack bool) {
+	for i := cursorIndex - 1; i >= 0 && buffer[i] != '\n'; i-- {
+		cursorIndex--
+		length--
+	}
+	for i := backBlockIndex; buffer[i] != '\n'; i++ {
+		backBlockIndex++
+		length--
+	}
+	backBlockIndex++
+	length--
+	return backBlockIndex == capacity
+}
+
 func computeNewX() (newX int) {
 	newX = 0
 	for i := cursorIndex - 1; i >= 0 && buffer[i] != '\n'; i-- {

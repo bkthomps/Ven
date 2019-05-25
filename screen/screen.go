@@ -53,6 +53,8 @@ var xCursor = 0
 var yCursor = 0
 var xCommandCursor = 0
 
+var oldCommand = '_'
+
 var blankLine = ""
 var command = ""
 
@@ -196,6 +198,20 @@ func executeNormalMode(ev *tcell.EventKey) {
 					shiftLeft(requiredUpdates)
 				}
 			}
+		case 'd':
+			if oldCommand == 'd' {
+				yCursor--
+				xCursor = 0
+				shiftUp()
+				yBack := buffer.RemoveLine()
+				yCursor++
+				if yBack {
+					actionUp()
+				}
+				oldCommand = '_'
+			} else {
+				oldCommand = ev.Rune()
+			}
 		}
 	}
 }
@@ -315,14 +331,7 @@ func actionDelete() {
 				r, _, _, _ := screen.GetContent(x, yCursor+1)
 				screen.SetContent(x+newX, yCursor, r, nil, terminalStyle)
 			}
-			for y := yCursor + 1; y < screenHeight-2; y++ {
-				for x := 0; x < screenWidth; x++ {
-					r, _, _, _ := screen.GetContent(x, y+1)
-					screen.SetContent(x, y, r, nil, terminalStyle)
-				}
-			}
-			putString(blankLine, 0, screenHeight-2)
-			putString(buffer.GetBottom(yCursor, screenHeight-2), 0, screenHeight-2)
+			shiftUp()
 		}
 	}
 }
@@ -332,6 +341,17 @@ func shiftLeft(requiredUpdates int) {
 		r, _, _, _ := screen.GetContent(i+1, yCursor)
 		screen.SetContent(i, yCursor, r, nil, terminalStyle)
 	}
+}
+
+func shiftUp() {
+	for y := yCursor + 1; y < screenHeight-2; y++ {
+		for x := 0; x < screenWidth; x++ {
+			r, _, _, _ := screen.GetContent(x, y+1)
+			screen.SetContent(x, y, r, nil, terminalStyle)
+		}
+	}
+	putString(blankLine, 0, screenHeight-2)
+	putString(buffer.GetBottom(yCursor, screenHeight-2), 0, screenHeight-2)
 }
 
 func actionEnter() {
