@@ -112,6 +112,15 @@ func Remove() (possible bool, newX, requiredUpdates int) {
 	return true, computeNewX(), computeRequiredUpdates()
 }
 
+func RemoveCurrent() (possible, xBack bool, requiredUpdates int) {
+	if backBlockIndex == length || buffer[backBlockIndex] == '\n' {
+		return false, false, 0
+	}
+	length--
+	backBlockIndex++
+	return true, buffer[backBlockIndex] == '\n', computeRequiredUpdates() + 1
+}
+
 func computeNewX() (newX int) {
 	newX = 0
 	for i := cursorIndex - 1; i >= 0 && buffer[i] != '\n'; i-- {

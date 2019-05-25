@@ -179,6 +179,22 @@ func executeNormalMode(ev *tcell.EventKey) {
 			mode = commandMode
 			command = ":"
 			xCommandCursor = 1
+		case 'x':
+			isPossible, xBack, requiredUpdates := buffer.RemoveCurrent()
+			if isPossible {
+				shiftLeft(requiredUpdates)
+				if xBack {
+					actionLeft()
+				}
+			}
+		case 'X':
+			if xCursor != 0 {
+				actionLeft()
+				isPossible, _, requiredUpdates := buffer.RemoveCurrent()
+				if isPossible {
+					shiftLeft(requiredUpdates)
+				}
+			}
 		}
 	}
 }

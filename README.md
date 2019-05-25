@@ -15,6 +15,8 @@ There are three modes: normal mode, command mode, and insertion mode.
 ### Normal Mode
 * `i` to go into insertion mode
 * `:` to go into command mode
+* `x` delete character under the cursor
+* `X` delete character before the cursor
 
 ### Command Mode
 * `esc` to go into normal mode
