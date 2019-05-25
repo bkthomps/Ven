@@ -212,6 +212,11 @@ func executeNormalMode(ev *tcell.EventKey) {
 			} else {
 				oldCommand = ev.Rune()
 			}
+		case 'D':
+			requiredUpdates := buffer.RemoveRestOfLine()
+			for i := xCursor; i <= xCursor+requiredUpdates; i++ {
+				screen.SetContent(i, yCursor, ' ', nil, terminalStyle)
+			}
 		}
 	}
 }

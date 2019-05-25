@@ -120,6 +120,21 @@ func Remove() (possible bool, newX, requiredUpdates int) {
 	return true, computeNewX(), computeRequiredUpdates()
 }
 
+func computeNewX() (newX int) {
+	newX = 0
+	for i := cursorIndex - 1; i >= 0 && buffer[i] != '\n'; i-- {
+		newX++
+	}
+	return newX
+}
+
+func computeRequiredUpdates() (requiredUpdates int) {
+	for i := backBlockIndex; i < capacity && buffer[i] != '\n'; i++ {
+		requiredUpdates++
+	}
+	return requiredUpdates
+}
+
 func RemoveCurrent() (possible, xBack bool, requiredUpdates int) {
 	if backBlockIndex == length || buffer[backBlockIndex] == '\n' {
 		return false, false, 0
@@ -141,21 +156,18 @@ func RemoveLine() (yBack bool) {
 	}
 	backBlockIndex++
 	length--
+	mutated = true
 	return backBlockIndex == capacity
 }
 
-func computeNewX() (newX int) {
-	newX = 0
-	for i := cursorIndex - 1; i >= 0 && buffer[i] != '\n'; i-- {
-		newX++
-	}
-	return newX
-}
-
-func computeRequiredUpdates() (requiredUpdates int) {
-	for i := backBlockIndex; i < capacity && buffer[i] != '\n'; i++ {
+func RemoveRestOfLine() (requiredUpdates int) {
+	requiredUpdates = 0
+	for i := backBlockIndex; buffer[i] != '\n'; i++ {
 		requiredUpdates++
+		backBlockIndex++
+		length--
 	}
+	mutated = true
 	return requiredUpdates
 }
 
