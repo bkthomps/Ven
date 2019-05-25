@@ -61,6 +61,31 @@ func Init(name string) (arr []rune) {
 	return arr
 }
 
+func Redraw(yCurrent, height int) (arr []rune) {
+	// TODO: fix crashes associated with this function
+	yTemp := yCurrent
+	startIndex := cursorIndex - 1
+	for yTemp >= 0 {
+		if buffer[startIndex] == '\n' {
+			yTemp--
+		}
+		startIndex--
+	}
+	yTemp = yCurrent
+	endIndex := backBlockIndex
+	for yTemp < height-1 {
+		if buffer[endIndex] == '\n' {
+			yTemp++
+		}
+		endIndex++
+	}
+	arr = make([]rune, endIndex-backBlockIndex+1+cursorIndex-startIndex)
+	pivot := cursorIndex - startIndex
+	copy(arr[:pivot], arr[startIndex:cursorIndex])
+	copy(arr[pivot:], arr[backBlockIndex:endIndex+1])
+	return arr
+}
+
 func Save() (err error) {
 	file, err := os.Create(fileName)
 	if err != nil {

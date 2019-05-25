@@ -90,12 +90,14 @@ func setInitial(arr []rune) {
 	}
 }
 
-func updateProperties() {
+func updateProperties() (isBigger bool) {
+	oldWidth, oldHeight := screenWidth, screenHeight
 	x, y := screen.Size()
 	screenWidth, screenHeight = x, y
 	for i := 0; i < x; i++ {
 		blankLine += " "
 	}
+	return oldWidth < screenWidth || oldHeight < screenHeight
 }
 
 func setColor(x, y int, s tcell.Style) {
@@ -149,13 +151,17 @@ func listener(quit chan struct{}) {
 				mode = commandMode
 			}
 		case *tcell.EventResize:
-			updateProperties()
+			isBigger := updateProperties()
 			for xCursor >= screenWidth {
 				actionLeft()
 			}
 			for yCursor >= screenHeight-1 {
 				shiftUp(-1)
 				yCursor--
+			}
+			if isBigger {
+				arr := buffer.Redraw(yCursor, screenHeight)
+				setInitial(arr)
 			}
 		}
 		displayMode()
