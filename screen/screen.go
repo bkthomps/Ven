@@ -85,17 +85,27 @@ func setInitial(arr []rune) {
 			x++
 		}
 	}
-	for i := y; i != screenHeight-1; i++ {
+	for i := y; i < screenHeight-1; i++ {
+		for j := 2; j < screenWidth; j++ {
+			r1, _, _, _ := screen.GetContent(j-2, i)
+			r2, _, _, _ := screen.GetContent(j-1, i)
+			if r1 == ' ' && r2 == ' ' {
+				break
+			}
+			screen.SetContent(j-2, i, ' ', nil, terminalStyle)
+		}
 		putRune('~', 0, i)
 	}
 }
 
-func updateProperties() {
+func updateProperties() (isBigger bool) {
+	oldWidth, oldHeight := screenWidth, screenHeight
 	x, y := screen.Size()
 	screenWidth, screenHeight = x, y
 	for i := 0; i < x; i++ {
 		blankLine += " "
 	}
+	return oldWidth < screenWidth || oldHeight < screenHeight
 }
 
 func setColor(x, y int, s tcell.Style) {
@@ -148,11 +158,21 @@ func listener(quit chan struct{}) {
 			case commandErrorMode:
 				mode = commandMode
 			}
-			displayMode()
 		case *tcell.EventResize:
-			updateProperties()
-			displayMode()
+			isBigger := updateProperties()
+			for xCursor >= screenWidth {
+				actionLeft()
+			}
+			for yCursor >= screenHeight-1 {
+				shiftUp(-1)
+				yCursor--
+			}
+			if isBigger {
+				arr := buffer.Redraw(yCursor, screenHeight)
+				setInitial(arr)
+			}
 		}
+		displayMode()
 	}
 }
 
@@ -200,11 +220,9 @@ func executeNormalMode(ev *tcell.EventKey) {
 			}
 		case 'd':
 			if oldCommand == 'd' {
-				yCursor--
 				xCursor = 0
-				shiftUp()
+				shiftUp(yCursor - 1)
 				yBack, isEmpty := buffer.RemoveLine()
-				yCursor++
 				if yBack {
 					actionUp()
 				}
@@ -339,7 +357,7 @@ func actionDelete() {
 				r, _, _, _ := screen.GetContent(x, yCursor+1)
 				screen.SetContent(x+newX, yCursor, r, nil, terminalStyle)
 			}
-			shiftUp()
+			shiftUp(yCursor)
 		}
 	}
 }
@@ -351,15 +369,15 @@ func shiftLeft(requiredUpdates int) {
 	}
 }
 
-func shiftUp() {
-	for y := yCursor + 1; y < screenHeight-2; y++ {
+func shiftUp(ontoY int) {
+	for y := ontoY + 1; y < screenHeight-1; y++ {
 		for x := 0; x < screenWidth; x++ {
 			r, _, _, _ := screen.GetContent(x, y+1)
 			screen.SetContent(x, y, r, nil, terminalStyle)
 		}
 	}
-	putString(blankLine, 0, screenHeight-2)
-	putString(buffer.GetBottom(yCursor, screenHeight-2), 0, screenHeight-2)
+	putString(blankLine, 0, screenHeight-1)
+	putString(buffer.GetBottom(ontoY, screenHeight-1), 0, screenHeight-1)
 }
 
 func actionEnter() {
