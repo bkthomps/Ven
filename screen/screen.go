@@ -148,11 +148,17 @@ func listener(quit chan struct{}) {
 			case commandErrorMode:
 				mode = commandMode
 			}
-			displayMode()
 		case *tcell.EventResize:
 			updateProperties()
-			displayMode()
+			for xCursor >= screenWidth {
+				actionLeft()
+			}
+			for yCursor >= screenHeight-1 {
+				shiftUp(-1)
+				yCursor--
+			}
 		}
+		displayMode()
 	}
 }
 
@@ -200,11 +206,9 @@ func executeNormalMode(ev *tcell.EventKey) {
 			}
 		case 'd':
 			if oldCommand == 'd' {
-				yCursor--
 				xCursor = 0
-				shiftUp()
+				shiftUp(yCursor - 1)
 				yBack, isEmpty := buffer.RemoveLine()
-				yCursor++
 				if yBack {
 					actionUp()
 				}
@@ -339,7 +343,7 @@ func actionDelete() {
 				r, _, _, _ := screen.GetContent(x, yCursor+1)
 				screen.SetContent(x+newX, yCursor, r, nil, terminalStyle)
 			}
-			shiftUp()
+			shiftUp(yCursor)
 		}
 	}
 }
@@ -351,15 +355,15 @@ func shiftLeft(requiredUpdates int) {
 	}
 }
 
-func shiftUp() {
-	for y := yCursor + 1; y < screenHeight-2; y++ {
+func shiftUp(ontoY int) {
+	for y := ontoY + 1; y < screenHeight-1; y++ {
 		for x := 0; x < screenWidth; x++ {
 			r, _, _, _ := screen.GetContent(x, y+1)
 			screen.SetContent(x, y, r, nil, terminalStyle)
 		}
 	}
-	putString(blankLine, 0, screenHeight-2)
-	putString(buffer.GetBottom(yCursor, screenHeight-2), 0, screenHeight-2)
+	putString(blankLine, 0, screenHeight-1)
+	putString(buffer.GetBottom(ontoY, screenHeight-1), 0, screenHeight-1)
 }
 
 func actionEnter() {
