@@ -77,7 +77,10 @@ func Redraw(yCurrent, height int) (arr []rune) {
 	yTemp = yCurrent
 	end := backBlockIndex
 	for {
-		if end == capacity || buffer[end] == '\n' {
+		if end >= capacity {
+			break
+		}
+		if buffer[end] == '\n' {
 			yTemp++
 			if yTemp > height-1 {
 				break
