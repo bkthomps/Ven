@@ -35,13 +35,20 @@ func main() {
 		print("Usage: ven <file_name>\n")
 		return
 	}
+	userArg := os.Args[1]
+	if userArg == "-v" || userArg == "--version" {
+		print("Ven version 0.3.0\n")
+		print("Created by Bailey Thompson\n")
+		print("Available at github.com/bkthomps/Ven\n")
+		return
+	}
 	s, e := tcell.NewScreen()
 	if e != nil {
 		log.Fatal(e)
 	}
 	encoding.Register()
 	quit := make(chan struct{})
-	screen.Init(s, quit, os.Args[1])
+	screen.Init(s, quit, userArg)
 	<-quit
 	s.Fini()
 }
