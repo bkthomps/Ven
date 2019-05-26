@@ -132,7 +132,6 @@ func displayMode() {
 		setColor(xCursor, yCursor, cursorStyle)
 		putCommand(blankLine)
 	case commandMode:
-		setColor(xCursor, yCursor, terminalStyle)
 		putCommand(blankLine)
 		putCommand(command)
 		setColor(xCommandCursor, screenHeight-1, cursorStyle)
@@ -161,6 +160,7 @@ func listener(quit chan struct{}) {
 			case commandErrorMode:
 				mode = commandMode
 			}
+			displayMode()
 		case *tcell.EventResize:
 			isBigger := updateProperties()
 			for xCursor >= screenWidth {
@@ -174,8 +174,8 @@ func listener(quit chan struct{}) {
 				arr := buffer.Redraw(yCursor, screenHeight)
 				setInitial(arr)
 			}
+			displayMode()
 		}
-		displayMode()
 	}
 }
 
@@ -202,6 +202,7 @@ func executeNormalMode(ev *tcell.EventKey) {
 		case 'i':
 			mode = insertMode
 		case ':', '/':
+			setColor(xCursor, yCursor, terminalStyle)
 			mode = commandMode
 			command = string(ev.Rune())
 			xCommandCursor = len(command)
