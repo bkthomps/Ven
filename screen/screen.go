@@ -450,6 +450,7 @@ func shiftRight(requiredUpdates int) {
 
 func executeCommand(quit chan struct{}) {
 	if len(command) > 1 && command[0] == '/' {
+		removeHighlighting()
 		search := command[1:]
 		xSearchPoints, ySearchPoints = buffer.Search(search, yCursor, screenHeight)
 		searchStringLength = len(search)
