@@ -258,9 +258,15 @@ func executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	case tcell.KeyEnter:
 		executeCommand(quit)
 	case tcell.KeyDEL:
-		sz := len(command)
-		command = command[:sz-1]
-		if sz == 1 {
+		if xCommandCursor <= 1 && len(command) > 1 {
+			break
+		}
+		runeCopy := []rune(command)
+		copy(runeCopy[xCommandCursor-1:], runeCopy[xCommandCursor:])
+		shrinkSize := len(runeCopy) - 1
+		runeCopy = runeCopy[:shrinkSize]
+		command = string(runeCopy)
+		if shrinkSize == 0 {
 			removeHighlighting()
 			mode = normalMode
 		}
