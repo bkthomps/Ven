@@ -55,6 +55,10 @@ var xCursor = 0
 var yCursor = 0
 var xCommandCursor = 0
 
+var xSearchPoints = []int(nil)
+var ySearchPoints = []int(nil)
+var searchStringLength = 0
+
 var oldCommand = '_'
 
 var blankLine = ""
@@ -249,6 +253,7 @@ func executeNormalMode(ev *tcell.EventKey) {
 func executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
+		removeHighlighting()
 		mode = normalMode
 	case tcell.KeyEnter:
 		executeCommand(quit)
@@ -256,6 +261,7 @@ func executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 		sz := len(command)
 		command = command[:sz-1]
 		if sz == 1 {
+			removeHighlighting()
 			mode = normalMode
 		}
 		xCommandCursor--
@@ -272,6 +278,21 @@ func executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	default:
 		command += string(ev.Rune())
 		xCommandCursor++
+	}
+}
+
+func removeHighlighting() {
+	if xSearchPoints != nil {
+		for i := 0; i < len(xSearchPoints); i++ {
+			startX, y := xSearchPoints[i], ySearchPoints[i]
+			for x := startX; x < searchStringLength+startX; x++ {
+				r, _, _, _ := screen.GetContent(x, y)
+				screen.SetContent(x, y, r, nil, terminalStyle)
+			}
+		}
+		xSearchPoints = nil
+		ySearchPoints = nil
+		searchStringLength = 0
 	}
 }
 
@@ -430,11 +451,11 @@ func shiftRight(requiredUpdates int) {
 func executeCommand(quit chan struct{}) {
 	if len(command) > 1 && command[0] == '/' {
 		search := command[1:]
-		xPoints, yPoints := buffer.Search(search, yCursor, screenHeight)
-		searchLen := len(search)
-		for i := 0; i < len(xPoints); i++ {
-			startX, y := xPoints[i], yPoints[i]
-			for x := startX; x < searchLen+startX; x++ {
+		xSearchPoints, ySearchPoints = buffer.Search(search, yCursor, screenHeight)
+		searchStringLength = len(search)
+		for i := 0; i < len(xSearchPoints); i++ {
+			startX, y := xSearchPoints[i], ySearchPoints[i]
+			for x := startX; x < searchStringLength+startX; x++ {
 				r, _, _, _ := screen.GetContent(x, y)
 				screen.SetContent(x, y, r, nil, highlightStyle)
 			}

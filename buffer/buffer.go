@@ -117,9 +117,10 @@ func Search(word string, yCurrent, height int) (xPoints, yPoints []int) {
 }
 
 func isMatching(arr []rune, word string, index int) (isMatching bool) {
+	arrLen := len(arr)
 	wordArr := []rune(word)
 	for i := 0; i < len(word); i++ {
-		if wordArr[i] != arr[i+index] {
+		if i+index >= arrLen || wordArr[i] != arr[i+index] {
 			return false
 		}
 	}
