@@ -97,6 +97,35 @@ func Redraw(yCurrent, height int) (arr []rune) {
 	return arr
 }
 
+func Search(word string, yCurrent, height int) (xPoints, yPoints []int) {
+	xPoints, yPoints = make([]int, 0), make([]int, 0)
+	x, y := 0, 0
+	arr := Redraw(yCurrent, height)
+	for i := 0; i < len(arr); i++ {
+		if arr[i] == '\n' {
+			x = 0
+			y++
+			continue
+		}
+		if isMatching(arr, word, i) {
+			xPoints = append(xPoints, x)
+			yPoints = append(yPoints, y)
+		}
+		x++
+	}
+	return xPoints, yPoints
+}
+
+func isMatching(arr []rune, word string, index int) (isMatching bool) {
+	wordArr := []rune(word)
+	for i := 0; i < len(word); i++ {
+		if wordArr[i] != arr[i+index] {
+			return false
+		}
+	}
+	return true
+}
+
 func Save() (err error) {
 	file, err := os.Create(fileName)
 	if err != nil {

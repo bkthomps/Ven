@@ -45,6 +45,7 @@ var mode = normalMode
 
 var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
 var cursorStyle = terminalStyle.Background(tcell.ColorDarkGray)
+var highlightStyle = terminalStyle.Background(tcell.ColorYellow)
 var screen tcell.Screen
 
 var screenHeight = 0
@@ -428,8 +429,15 @@ func shiftRight(requiredUpdates int) {
 func executeCommand(quit chan struct{}) {
 	if len(command) > 1 && command[0] == '/' {
 		search := command[1:]
-		// TODO: search for this string
-		buffer.Log("search.txt", search)
+		xPoints, yPoints := buffer.Search(search, yCursor, screenHeight)
+		searchLen := len(search)
+		for i := 0; i < len(xPoints); i++ {
+			startX, y := xPoints[i], yPoints[i]
+			for x := startX; x < searchLen+startX; x++ {
+				r, _, _, _ := screen.GetContent(x, y)
+				screen.SetContent(x, y, r, nil, highlightStyle)
+			}
+		}
 		return
 	}
 	switch command {
