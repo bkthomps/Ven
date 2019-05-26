@@ -30,6 +30,7 @@ There are three modes: normal mode, command mode, and insertion mode.
 ### Normal Mode
 * `i` to go into insertion mode
 * `:` to go into command mode
+* `/` to go into command (search) mode
 * `x` delete character under the cursor
 * `X` delete character before the cursor
 * `dd` delete entire line
@@ -37,6 +38,7 @@ There are three modes: normal mode, command mode, and insertion mode.
 
 ### Command Mode
 * `esc` to go into normal mode
+* `/<search>` to search for a string (currently doesn't support regex)
 * `:w` to save the file
 * `:wq` to save and quit
 * `:q` to safely quit

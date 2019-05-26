@@ -45,6 +45,7 @@ var mode = normalMode
 
 var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
 var cursorStyle = terminalStyle.Background(tcell.ColorDarkGray)
+var highlightStyle = terminalStyle.Background(tcell.ColorYellow)
 var screen tcell.Screen
 
 var screenHeight = 0
@@ -53,6 +54,10 @@ var screenWidth = 0
 var xCursor = 0
 var yCursor = 0
 var xCommandCursor = 0
+
+var xSearchPoints = []int(nil)
+var ySearchPoints = []int(nil)
+var searchStringLength = 0
 
 var oldCommand = '_'
 
@@ -131,7 +136,6 @@ func displayMode() {
 		setColor(xCursor, yCursor, cursorStyle)
 		putCommand(blankLine)
 	case commandMode:
-		setColor(xCursor, yCursor, terminalStyle)
 		putCommand(blankLine)
 		putCommand(command)
 		setColor(xCommandCursor, screenHeight-1, cursorStyle)
@@ -160,6 +164,7 @@ func listener(quit chan struct{}) {
 			case commandErrorMode:
 				mode = commandMode
 			}
+			displayMode()
 		case *tcell.EventResize:
 			isBigger := updateProperties()
 			for xCursor >= screenWidth {
@@ -173,8 +178,8 @@ func listener(quit chan struct{}) {
 				arr := buffer.Redraw(yCursor, screenHeight)
 				setInitial(arr)
 			}
+			displayMode()
 		}
-		displayMode()
 	}
 }
 
@@ -200,10 +205,11 @@ func executeNormalMode(ev *tcell.EventKey) {
 		switch ev.Rune() {
 		case 'i':
 			mode = insertMode
-		case ':':
+		case ':', '/':
+			setColor(xCursor, yCursor, terminalStyle)
 			mode = commandMode
-			command = ":"
-			xCommandCursor = 1
+			command = string(ev.Rune())
+			xCommandCursor = len(command)
 		case 'x':
 			isPossible, xBack, requiredUpdates := buffer.RemoveCurrent()
 			if isPossible {
@@ -247,6 +253,7 @@ func executeNormalMode(ev *tcell.EventKey) {
 func executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
+		removeHighlighting()
 		mode = normalMode
 	case tcell.KeyEnter:
 		executeCommand(quit)
@@ -254,6 +261,7 @@ func executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 		sz := len(command)
 		command = command[:sz-1]
 		if sz == 1 {
+			removeHighlighting()
 			mode = normalMode
 		}
 		xCommandCursor--
@@ -270,6 +278,21 @@ func executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	default:
 		command += string(ev.Rune())
 		xCommandCursor++
+	}
+}
+
+func removeHighlighting() {
+	if xSearchPoints != nil {
+		for i := 0; i < len(xSearchPoints); i++ {
+			startX, y := xSearchPoints[i], ySearchPoints[i]
+			for x := startX; x < searchStringLength+startX; x++ {
+				r, _, _, _ := screen.GetContent(x, y)
+				screen.SetContent(x, y, r, nil, terminalStyle)
+			}
+		}
+		xSearchPoints = nil
+		ySearchPoints = nil
+		searchStringLength = 0
 	}
 }
 
@@ -426,6 +449,20 @@ func shiftRight(requiredUpdates int) {
 }
 
 func executeCommand(quit chan struct{}) {
+	if len(command) > 1 && command[0] == '/' {
+		removeHighlighting()
+		search := command[1:]
+		xSearchPoints, ySearchPoints = buffer.Search(search, yCursor, screenHeight)
+		searchStringLength = len(search)
+		for i := 0; i < len(xSearchPoints); i++ {
+			startX, y := xSearchPoints[i], ySearchPoints[i]
+			for x := startX; x < searchStringLength+startX; x++ {
+				r, _, _, _ := screen.GetContent(x, y)
+				screen.SetContent(x, y, r, nil, highlightStyle)
+			}
+		}
+		return
+	}
 	switch command {
 	case ":q":
 		if buffer.CanSafeQuit() {
