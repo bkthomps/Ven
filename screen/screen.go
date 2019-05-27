@@ -401,14 +401,14 @@ func shiftLeft(requiredUpdates int) {
 }
 
 func shiftUp(ontoY int) {
-	for y := ontoY + 1; y < screenHeight-2; y++ {
+	for y := ontoY + 1; y < screenHeight-1; y++ {
 		for x := 0; x < screenWidth; x++ {
 			r, _, _, _ := screen.GetContent(x, y+1)
 			screen.SetContent(x, y, r, nil, terminalStyle)
 		}
 	}
-	putString(blankLine, 0, screenHeight-2)
-	putString(buffer.GetBottom(ontoY, screenHeight-2), 0, screenHeight-2)
+	putString(blankLine, 0, screenHeight-1)
+	putString(buffer.GetBottom(ontoY, screenHeight-1), 0, screenHeight-1)
 }
 
 func actionEnter() {
