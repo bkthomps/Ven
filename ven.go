@@ -30,6 +30,8 @@ import (
 	"os"
 )
 
+const version = "0.3.0"
+
 func main() {
 	if len(os.Args) != 2 {
 		print("Usage: ven <file_name>\n")
@@ -37,7 +39,7 @@ func main() {
 	}
 	userArg := os.Args[1]
 	if userArg == "-v" || userArg == "--version" {
-		print("Ven version 0.3.0\n")
+		print("Ven version " + version + "\n")
 		print("Created by Bailey Thompson\n")
 		print("Available at github.com/bkthomps/Ven\n")
 		return
