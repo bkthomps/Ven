@@ -171,7 +171,7 @@ func listener(quit chan struct{}, fileBuffer *buffer.Info) {
 				actionLeft(fileBuffer)
 			}
 			for yCursor >= screenHeight-1 {
-				shiftUp(-1, fileBuffer)
+				shiftUp(-1, screenHeight-1, fileBuffer)
 				yCursor--
 			}
 			if isBigger {
@@ -229,7 +229,7 @@ func executeNormalMode(ev *tcell.EventKey, fileBuffer *buffer.Info) {
 		case 'd':
 			if oldCommand == 'd' {
 				xCursor = 0
-				shiftUp(yCursor-1, fileBuffer)
+				shiftUp(yCursor-1, screenHeight-2, fileBuffer)
 				yBack, isEmpty := buffer.RemoveLine(fileBuffer)
 				if yBack {
 					actionUp(fileBuffer)
@@ -388,7 +388,7 @@ func actionDelete(fileBuffer *buffer.Info) {
 				r, _, _, _ := screen.GetContent(x, yCursor+1)
 				screen.SetContent(x+newX, yCursor, r, nil, terminalStyle)
 			}
-			shiftUp(yCursor, fileBuffer)
+			shiftUp(yCursor, screenHeight-2, fileBuffer)
 		}
 	}
 }
@@ -400,15 +400,15 @@ func shiftLeft(requiredUpdates int) {
 	}
 }
 
-func shiftUp(ontoY int, fileBuffer *buffer.Info) {
-	for y := ontoY + 1; y < screenHeight-1; y++ {
+func shiftUp(ontoY, bottomY int, fileBuffer *buffer.Info) {
+	for y := ontoY + 1; y < bottomY; y++ {
 		for x := 0; x < screenWidth; x++ {
 			r, _, _, _ := screen.GetContent(x, y+1)
 			screen.SetContent(x, y, r, nil, terminalStyle)
 		}
 	}
-	putString(blankLine, 0, screenHeight-1)
-	putString(buffer.GetBottom(fileBuffer, ontoY, screenHeight-1), 0, screenHeight-1)
+	putString(blankLine, 0, bottomY)
+	putString(buffer.GetBottom(fileBuffer, ontoY, bottomY), 0, bottomY)
 }
 
 func actionEnter(fileBuffer *buffer.Info) {
