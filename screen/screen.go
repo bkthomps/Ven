@@ -43,9 +43,11 @@ const (
 	commandErrorMode
 )
 
-var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
-var cursorStyle = terminalStyle.Background(tcell.ColorDarkGray)
-var highlightStyle = terminalStyle.Background(tcell.ColorYellow)
+var (
+	terminalStyle  = tcell.StyleDefault.Foreground(tcell.ColorBlack)
+	cursorStyle    = terminalStyle.Background(tcell.ColorDarkGray)
+	highlightStyle = terminalStyle.Background(tcell.ColorYellow)
+)
 
 type info struct {
 	screen         tcell.Screen
@@ -466,20 +468,7 @@ func executeCommand(quit chan struct{}, info *info) {
 	if len(info.command) > 1 && info.command[0] == '/' {
 		removeHighlighting(info)
 		searchText := info.command[1:]
-		xPoints, yPoints := buffer.Search(info.fileBuffer, searchText, info.yCursor, info.screenHeight)
-		length := len(searchText)
-		for i := 0; i < len(xPoints); i++ {
-			startX, y := xPoints[i], yPoints[i]
-			for x := startX; x < length+startX; x++ {
-				r, _, _, _ := info.screen.GetContent(x, y)
-				info.screen.SetContent(x, y, r, nil, highlightStyle)
-			}
-		}
-		info.search = &search{
-			xPoints: xPoints,
-			yPoints: yPoints,
-			length:  length,
-		}
+		highlight(info, searchText)
 		return
 	}
 	switch info.command {
@@ -500,6 +489,23 @@ func executeCommand(quit chan struct{}, info *info) {
 		}
 	default:
 		displayError(info, errorCommand)
+	}
+}
+
+func highlight(info *info, searchText string) {
+	xPoints, yPoints := buffer.Search(info.fileBuffer, searchText, info.yCursor, info.screenHeight)
+	length := len(searchText)
+	for i := 0; i < len(xPoints); i++ {
+		startX, y := xPoints[i], yPoints[i]
+		for x := startX; x < length+startX; x++ {
+			r, _, _, _ := info.screen.GetContent(x, y)
+			info.screen.SetContent(x, y, r, nil, highlightStyle)
+		}
+	}
+	info.search = &search{
+		xPoints: xPoints,
+		yPoints: yPoints,
+		length:  length,
 	}
 }
 
