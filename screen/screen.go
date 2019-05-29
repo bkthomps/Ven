@@ -256,6 +256,9 @@ func executeNormalMode(info *info, ev *tcell.EventKey) {
 			for i := info.xCursor; i <= info.xCursor+requiredUpdates; i++ {
 				info.screen.SetContent(i, info.yCursor, ' ', nil, terminalStyle)
 			}
+			if requiredUpdates == 1 && info.xCursor > 0 {
+				actionLeft(info)
+			}
 		}
 	}
 }
