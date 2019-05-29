@@ -29,10 +29,12 @@ import (
 	"log"
 )
 
-const insertMessage = "-- INSERT --"
-const errorCommand = "-- Invalid Command --"
-const errorSave = "-- Could Not Save File --"
-const modifiedFile = "-- File Has Been Modified Since Last Save --"
+const (
+	insertMessage = "-- INSERT --"
+	errorCommand  = "-- Invalid Command --"
+	errorSave     = "-- Could Not Save File --"
+	modifiedFile  = "-- File Has Been Modified Since Last Save --"
+)
 
 const (
 	insertMode = iota
@@ -41,470 +43,487 @@ const (
 	commandErrorMode
 )
 
-var mode = normalMode
+var (
+	terminalStyle  = tcell.StyleDefault.Foreground(tcell.ColorBlack)
+	cursorStyle    = terminalStyle.Background(tcell.ColorDarkGray)
+	highlightStyle = terminalStyle.Background(tcell.ColorYellow)
+)
 
-var terminalStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack)
-var cursorStyle = terminalStyle.Background(tcell.ColorDarkGray)
-var highlightStyle = terminalStyle.Background(tcell.ColorYellow)
-var screen tcell.Screen
-
-var screenHeight = 0
-var screenWidth = 0
-
-var xCursor = 0
-var yCursor = 0
-var xCommandCursor = 0
-
-var xSearchPoints = []int(nil)
-var ySearchPoints = []int(nil)
-var searchStringLength = 0
-
-var oldCommand = '_'
-
-var blankLine = ""
-var command = ""
-
-func Init(s tcell.Screen, quit chan struct{}, fileName string) {
-	screen = s
-	if e := screen.Init(); e != nil {
-		log.Fatal(e)
-	}
-	fileBuffer, arr := buffer.Init(fileName)
-	screen.SetStyle(terminalStyle)
-	screen.Show()
-	updateProperties()
-	setInitial(arr)
-	setColor(xCursor, yCursor, cursorStyle)
-	displayMode()
-	go listener(quit, fileBuffer)
+type info struct {
+	screen         tcell.Screen
+	mode           int
+	screenHeight   int
+	screenWidth    int
+	xCursor        int
+	yCursor        int
+	xCommandCursor int
+	command        string
+	oldCommand     rune
+	blankLine      string
+	search         *search
+	fileBuffer     *buffer.Info
 }
 
-func setInitial(arr []rune) {
+type search struct {
+	xPoints []int
+	yPoints []int
+	length  int
+}
+
+func Init(screen tcell.Screen, quit chan struct{}, fileName string) {
+	fileBuffer, arr := buffer.Init(fileName)
+	screenInfo := &info{
+		screen:     screen,
+		mode:       normalMode,
+		fileBuffer: fileBuffer,
+	}
+	if e := screenInfo.screen.Init(); e != nil {
+		log.Fatal(e)
+	}
+	screenInfo.screen.SetStyle(terminalStyle)
+	screenInfo.screen.Show()
+	updateProperties(screenInfo)
+	setInitial(screenInfo, arr)
+	setColor(screenInfo.screen, screenInfo.xCursor, screenInfo.yCursor, cursorStyle)
+	displayMode(screenInfo)
+	go listener(quit, screenInfo)
+}
+
+func updateProperties(info *info) (isBigger bool) {
+	oldWidth, oldHeight := info.screenWidth, info.screenHeight
+	x, y := info.screen.Size()
+	info.screenWidth, info.screenHeight = x, y
+	for i := 0; i < x; i++ {
+		info.blankLine += " "
+	}
+	return oldWidth < info.screenWidth || oldHeight < info.screenHeight
+}
+
+func setInitial(info *info, arr []rune) {
 	x, y := 0, 0
-	for i := 0; i < len(arr) && y < screenHeight-1; i++ {
+	for i := 0; i < len(arr) && y < info.screenHeight-1; i++ {
 		cur := arr[i]
 		if cur == '\n' {
 			y++
 			x = 0
-		} else if x < screenWidth {
-			putRune(cur, x, y)
+		} else if x < info.screenWidth {
+			putRune(info.screen, cur, x, y)
 			x++
 		}
 	}
-	for i := y; i < screenHeight-1; i++ {
-		for j := 2; j < screenWidth; j++ {
-			r1, _, _, _ := screen.GetContent(j-2, i)
-			r2, _, _, _ := screen.GetContent(j-1, i)
+	for i := y; i < info.screenHeight-1; i++ {
+		for j := 2; j < info.screenWidth; j++ {
+			r1, _, _, _ := info.screen.GetContent(j-2, i)
+			r2, _, _, _ := info.screen.GetContent(j-1, i)
 			if r1 == ' ' && r2 == ' ' {
 				break
 			}
-			screen.SetContent(j-2, i, ' ', nil, terminalStyle)
+			info.screen.SetContent(j-2, i, ' ', nil, terminalStyle)
 		}
-		putRune('~', 0, i)
+		putRune(info.screen, '~', 0, i)
 	}
 }
 
-func updateProperties() (isBigger bool) {
-	oldWidth, oldHeight := screenWidth, screenHeight
-	x, y := screen.Size()
-	screenWidth, screenHeight = x, y
-	for i := 0; i < x; i++ {
-		blankLine += " "
-	}
-	return oldWidth < screenWidth || oldHeight < screenHeight
-}
-
-func setColor(x, y int, s tcell.Style) {
+func setColor(screen tcell.Screen, x, y int, s tcell.Style) {
 	r, _, _, _ := screen.GetContent(x, y)
 	screen.SetContent(x, y, r, nil, s)
 }
 
-func displayError(error string) {
-	putCommand(blankLine)
-	putCommand(error)
-	mode = commandErrorMode
-	displayMode()
+func displayError(info *info, error string) {
+	putCommand(info, info.blankLine)
+	putCommand(info, error)
+	info.mode = commandErrorMode
+	displayMode(info)
 }
 
-func displayMode() {
-	switch mode {
+func displayMode(info *info) {
+	switch info.mode {
 	case insertMode:
-		setColor(xCursor, yCursor, cursorStyle)
-		putCommand(blankLine)
-		putCommand(insertMessage)
+		setColor(info.screen, info.xCursor, info.yCursor, cursorStyle)
+		putCommand(info, info.blankLine)
+		putCommand(info, insertMessage)
 	case normalMode:
-		setColor(xCursor, yCursor, cursorStyle)
-		putCommand(blankLine)
+		setColor(info.screen, info.xCursor, info.yCursor, cursorStyle)
+		putCommand(info, info.blankLine)
 	case commandMode:
-		putCommand(blankLine)
-		putCommand(command)
-		setColor(xCommandCursor, screenHeight-1, cursorStyle)
+		putCommand(info, info.blankLine)
+		putCommand(info, info.command)
+		setColor(info.screen, info.xCommandCursor, info.screenHeight-1, cursorStyle)
 	case commandErrorMode:
-		setColor(xCommandCursor, screenHeight-1, terminalStyle)
+		setColor(info.screen, info.xCommandCursor, info.screenHeight-1, terminalStyle)
 	}
-	screen.Sync()
+	info.screen.Sync()
 }
 
-func putCommand(str string) {
-	puts(screen, terminalStyle, 0, screenHeight-1, str)
+func putCommand(info *info, str string) {
+	puts(info.screen, terminalStyle, 0, info.screenHeight-1, str)
 }
 
-func listener(quit chan struct{}, fileBuffer *buffer.Info) {
+func listener(quit chan struct{}, info *info) {
 	for {
-		ev := screen.PollEvent()
+		ev := info.screen.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
-			switch mode {
+			switch info.mode {
 			case insertMode:
-				executeInsertMode(ev, fileBuffer)
+				executeInsertMode(info, ev)
 			case normalMode:
-				executeNormalMode(ev, fileBuffer)
+				executeNormalMode(info, ev)
 			case commandMode:
-				executeCommandMode(ev, quit, fileBuffer)
+				executeCommandMode(info, ev, quit)
 			case commandErrorMode:
-				mode = commandMode
+				info.mode = commandMode
 			}
-			displayMode()
+			displayMode(info)
 		case *tcell.EventResize:
-			isBigger := updateProperties()
-			for xCursor >= screenWidth {
-				actionLeft(fileBuffer)
+			isBigger := updateProperties(info)
+			for info.xCursor >= info.screenWidth {
+				actionLeft(info)
 			}
-			for yCursor >= screenHeight-1 {
-				shiftUp(-1, screenHeight-1, fileBuffer)
-				yCursor--
+			for info.yCursor >= info.screenHeight-1 {
+				shiftUp(info, -1, info.screenHeight-1)
+				info.yCursor--
 			}
 			if isBigger {
-				arr := buffer.Redraw(fileBuffer, yCursor, screenHeight)
-				setInitial(arr)
+				arr := buffer.Redraw(info.fileBuffer, info.yCursor, info.screenHeight)
+				setInitial(info, arr)
 			}
-			displayMode()
+			displayMode(info)
 		}
 	}
 }
 
-func executeInsertMode(ev *tcell.EventKey, fileBuffer *buffer.Info) {
+func executeInsertMode(info *info, ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		setColor(xCursor, yCursor, terminalStyle)
-		mode = normalMode
-		possible := buffer.Left(fileBuffer)
+		setColor(info.screen, info.xCursor, info.yCursor, terminalStyle)
+		info.mode = normalMode
+		possible := buffer.Left(info.fileBuffer)
 		if possible {
-			xCursor--
+			info.xCursor--
 		}
 	default:
-		bufferAction(ev, fileBuffer)
+		bufferAction(info, ev)
 	}
 }
 
-func executeNormalMode(ev *tcell.EventKey, fileBuffer *buffer.Info) {
+func executeNormalMode(info *info, ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
-		bufferAction(ev, fileBuffer)
+		bufferAction(info, ev)
 	default:
 		switch ev.Rune() {
 		case 'i':
-			mode = insertMode
+			info.mode = insertMode
 		case ':', '/':
-			setColor(xCursor, yCursor, terminalStyle)
-			mode = commandMode
-			command = string(ev.Rune())
-			xCommandCursor = len(command)
+			setColor(info.screen, info.xCursor, info.yCursor, terminalStyle)
+			info.mode = commandMode
+			info.command = string(ev.Rune())
+			info.xCommandCursor = len(info.command)
 		case 'x':
-			isPossible, xBack, requiredUpdates := buffer.RemoveCurrent(fileBuffer)
+			isPossible, xBack, requiredUpdates := buffer.RemoveCurrent(info.fileBuffer)
 			if isPossible {
-				shiftLeft(requiredUpdates)
+				shiftLeft(info, requiredUpdates)
 				if xBack {
-					actionLeft(fileBuffer)
+					actionLeft(info)
 				}
 			}
 		case 'X':
-			if xCursor != 0 {
-				actionLeft(fileBuffer)
-				isPossible, _, requiredUpdates := buffer.RemoveCurrent(fileBuffer)
+			if info.xCursor != 0 {
+				actionLeft(info)
+				isPossible, _, requiredUpdates := buffer.RemoveCurrent(info.fileBuffer)
 				if isPossible {
-					shiftLeft(requiredUpdates)
+					shiftLeft(info, requiredUpdates)
 				}
 			}
 		case 'd':
-			if oldCommand == 'd' {
-				xCursor = 0
-				shiftUp(yCursor-1, screenHeight-2, fileBuffer)
-				yBack, isEmpty := buffer.RemoveLine(fileBuffer)
+			if info.oldCommand == 'd' {
+				info.xCursor = 0
+				shiftUp(info, info.yCursor-1, info.screenHeight-2)
+				yBack, isEmpty := buffer.RemoveLine(info.fileBuffer)
 				if yBack {
-					actionUp(fileBuffer)
+					actionUp(info)
 				}
 				if isEmpty {
-					screen.SetContent(0, 0, ' ', nil, terminalStyle)
+					info.screen.SetContent(0, 0, ' ', nil, terminalStyle)
 				}
-				oldCommand = '_'
+				info.oldCommand = '_'
 			} else {
-				oldCommand = ev.Rune()
+				info.oldCommand = ev.Rune()
 			}
 		case 'D':
-			requiredUpdates := buffer.RemoveRestOfLine(fileBuffer)
-			for i := xCursor; i <= xCursor+requiredUpdates; i++ {
-				screen.SetContent(i, yCursor, ' ', nil, terminalStyle)
+			requiredUpdates := buffer.RemoveRestOfLine(info.fileBuffer)
+			for i := info.xCursor; i <= info.xCursor+requiredUpdates; i++ {
+				info.screen.SetContent(i, info.yCursor, ' ', nil, terminalStyle)
 			}
 		}
 	}
 }
 
-func executeCommandMode(ev *tcell.EventKey, quit chan struct{}, fileBuffer *buffer.Info) {
+func executeCommandMode(info *info, ev *tcell.EventKey, quit chan struct{}) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		removeHighlighting()
-		mode = normalMode
+		removeHighlighting(info)
+		info.mode = normalMode
 	case tcell.KeyEnter:
-		executeCommand(quit, fileBuffer)
+		executeCommand(quit, info)
 	case tcell.KeyDEL:
-		if xCommandCursor <= 1 && len(command) > 1 {
+		if info.xCommandCursor <= 1 && len(info.command) > 1 {
 			break
 		}
-		runeCopy := []rune(command)
-		copy(runeCopy[xCommandCursor-1:], runeCopy[xCommandCursor:])
+		runeCopy := []rune(info.command)
+		copy(runeCopy[info.xCommandCursor-1:], runeCopy[info.xCommandCursor:])
 		shrinkSize := len(runeCopy) - 1
 		runeCopy = runeCopy[:shrinkSize]
-		command = string(runeCopy)
+		info.command = string(runeCopy)
 		if shrinkSize == 0 {
-			removeHighlighting()
-			mode = normalMode
+			removeHighlighting(info)
+			info.mode = normalMode
 		}
-		xCommandCursor--
+		info.xCommandCursor--
 	case tcell.KeyDown, tcell.KeyUp:
 		// Do Nothing
 	case tcell.KeyLeft:
-		if xCommandCursor > 1 {
-			xCommandCursor--
+		if info.xCommandCursor > 1 {
+			info.xCommandCursor--
 		}
 	case tcell.KeyRight:
-		if xCommandCursor < len(command) {
-			xCommandCursor++
+		if info.xCommandCursor < len(info.command) {
+			info.xCommandCursor++
 		}
 	default:
-		command += string(ev.Rune())
-		xCommandCursor++
+		info.command += string(ev.Rune())
+		info.xCommandCursor++
 	}
 }
 
-func removeHighlighting() {
-	if xSearchPoints != nil {
-		for i := 0; i < len(xSearchPoints); i++ {
-			startX, y := xSearchPoints[i], ySearchPoints[i]
-			for x := startX; x < searchStringLength+startX; x++ {
-				r, _, _, _ := screen.GetContent(x, y)
-				screen.SetContent(x, y, r, nil, terminalStyle)
-			}
-		}
-		xSearchPoints = nil
-		ySearchPoints = nil
-		searchStringLength = 0
-	}
-}
-
-func bufferAction(ev *tcell.EventKey, fileBuffer *buffer.Info) {
-	setColor(xCursor, yCursor, terminalStyle)
-	switch ev.Key() {
-	case tcell.KeyDown:
-		actionDown(fileBuffer)
-	case tcell.KeyUp:
-		actionUp(fileBuffer)
-	case tcell.KeyLeft:
-		actionLeft(fileBuffer)
-	case tcell.KeyRight:
-		actionRight(fileBuffer)
-	case tcell.KeyDEL:
-		actionDelete(fileBuffer)
-	case tcell.KeyEnter:
-		actionEnter(fileBuffer)
-	default:
-		actionKeyPress(ev, fileBuffer)
-	}
-	setColor(xCursor, yCursor, cursorStyle)
-}
-
-func actionDown(fileBuffer *buffer.Info) {
-	possible, x := buffer.Down(fileBuffer, xCursor, mode == insertMode)
-	if possible {
-		if yCursor == screenHeight-2 {
-			for y := 0; y < screenHeight-2; y++ {
-				for x := 0; x < screenWidth; x++ {
-					r, _, _, _ := screen.GetContent(x, y+1)
-					screen.SetContent(x, y, r, nil, terminalStyle)
-				}
-			}
-			putString(blankLine, 0, screenHeight-2)
-			putString(buffer.GetLine(fileBuffer), 0, screenHeight-2)
-		} else {
-			yCursor++
-		}
-		xCursor = x
-	}
-}
-
-func actionUp(fileBuffer *buffer.Info) {
-	possible, x := buffer.Up(fileBuffer, xCursor, mode == insertMode)
-	if possible {
-		if yCursor == 0 {
-			for y := screenHeight - 2; y > 0; y-- {
-				for x := 0; x < screenWidth; x++ {
-					r, _, _, _ := screen.GetContent(x, y-1)
-					screen.SetContent(x, y, r, nil, terminalStyle)
-				}
-			}
-			putString(blankLine, 0, 0)
-			putString(buffer.GetLine(fileBuffer), 0, 0)
-		} else {
-			yCursor--
-		}
-		xCursor = x
-	}
-}
-
-func actionLeft(fileBuffer *buffer.Info) {
-	possible := buffer.Left(fileBuffer)
-	if possible {
-		xCursor--
-	}
-}
-
-func actionRight(fileBuffer *buffer.Info) {
-	possible := buffer.Right(fileBuffer, mode == insertMode)
-	if possible {
-		xCursor++
-	}
-}
-
-func actionDelete(fileBuffer *buffer.Info) {
-	possible, newX, requiredUpdates := buffer.Remove(fileBuffer)
-	if possible {
-		if xCursor != 0 {
-			xCursor--
-			shiftLeft(requiredUpdates)
-		} else {
-			xCursor = newX
-			yCursor--
-			for x := 0; x < requiredUpdates; x++ {
-				r, _, _, _ := screen.GetContent(x, yCursor+1)
-				screen.SetContent(x+newX, yCursor, r, nil, terminalStyle)
-			}
-			shiftUp(yCursor, screenHeight-2, fileBuffer)
-		}
-	}
-}
-
-func shiftLeft(requiredUpdates int) {
-	for i := xCursor; i <= xCursor+requiredUpdates; i++ {
-		r, _, _, _ := screen.GetContent(i+1, yCursor)
-		screen.SetContent(i, yCursor, r, nil, terminalStyle)
-	}
-}
-
-func shiftUp(ontoY, bottomY int, fileBuffer *buffer.Info) {
-	for y := ontoY + 1; y < bottomY; y++ {
-		for x := 0; x < screenWidth; x++ {
-			r, _, _, _ := screen.GetContent(x, y+1)
-			screen.SetContent(x, y, r, nil, terminalStyle)
-		}
-	}
-	putString(blankLine, 0, bottomY)
-	putString(buffer.GetBottom(fileBuffer, ontoY, bottomY), 0, bottomY)
-}
-
-func actionEnter(fileBuffer *buffer.Info) {
-	buffer.Add(fileBuffer, '\n')
-	for y := screenHeight - 2; y > yCursor+1; y-- {
-		for x := 0; x < screenWidth; x++ {
-			r, _, _, _ := screen.GetContent(x, y-1)
-			screen.SetContent(x, y, r, nil, terminalStyle)
-		}
-	}
-	for x := 0; x < screenWidth; x++ {
-		r, _, _, _ := screen.GetContent(x+xCursor, yCursor)
-		screen.SetContent(x, yCursor+1, r, nil, terminalStyle)
-		screen.SetContent(x+xCursor, yCursor, ' ', nil, terminalStyle)
-	}
-	xCursor = 0
-	if yCursor != screenHeight-2 {
-		yCursor++
-	} else {
-		for y := 0; y < screenHeight-2; y++ {
-			for x := 0; x < screenWidth; x++ {
-				r, _, _, _ := screen.GetContent(x, y+1)
-				screen.SetContent(x, y, r, nil, terminalStyle)
-			}
-		}
-		putString(blankLine, 0, screenHeight-2)
-		putString(buffer.GetLine(fileBuffer), 0, screenHeight-2)
-	}
-}
-
-func actionKeyPress(ev *tcell.EventKey, fileBuffer *buffer.Info) {
-	x, y := xCursor, yCursor
-	requiredUpdates := buffer.Add(fileBuffer, ev.Rune())
-	xCursor++
-	shiftRight(requiredUpdates)
-	putRune(ev.Rune(), x, y)
-}
-
-func shiftRight(requiredUpdates int) {
-	for i := xCursor + requiredUpdates; i >= xCursor; i-- {
-		r, _, _, _ := screen.GetContent(i-1, yCursor)
-		screen.SetContent(i, yCursor, r, nil, terminalStyle)
-	}
-}
-
-func executeCommand(quit chan struct{}, fileBuffer *buffer.Info) {
-	if len(command) > 1 && command[0] == '/' {
-		removeHighlighting()
-		search := command[1:]
-		xSearchPoints, ySearchPoints = buffer.Search(fileBuffer, search, yCursor, screenHeight)
-		searchStringLength = len(search)
-		for i := 0; i < len(xSearchPoints); i++ {
-			startX, y := xSearchPoints[i], ySearchPoints[i]
-			for x := startX; x < searchStringLength+startX; x++ {
-				r, _, _, _ := screen.GetContent(x, y)
-				screen.SetContent(x, y, r, nil, highlightStyle)
-			}
-		}
+func removeHighlighting(info *info) {
+	search := info.search
+	if search == nil {
 		return
 	}
-	switch command {
+	for i := 0; i < len(search.xPoints); i++ {
+		startX, y := search.xPoints[i], search.yPoints[i]
+		for x := startX; x < search.length+startX; x++ {
+			r, _, _, _ := info.screen.GetContent(x, y)
+			info.screen.SetContent(x, y, r, nil, terminalStyle)
+		}
+	}
+	info.search = nil
+}
+
+func bufferAction(info *info, ev *tcell.EventKey) {
+	setColor(info.screen, info.xCursor, info.yCursor, terminalStyle)
+	switch ev.Key() {
+	case tcell.KeyDown:
+		actionDown(info)
+	case tcell.KeyUp:
+		actionUp(info)
+	case tcell.KeyLeft:
+		actionLeft(info)
+	case tcell.KeyRight:
+		actionRight(info)
+	case tcell.KeyDEL:
+		actionDelete(info)
+	case tcell.KeyEnter:
+		actionEnter(info)
+	default:
+		actionKeyPress(info, ev)
+	}
+	setColor(info.screen, info.xCursor, info.yCursor, cursorStyle)
+}
+
+func actionDown(info *info) {
+	possible, x := buffer.Down(info.fileBuffer, info.xCursor, info.mode == insertMode)
+	if possible {
+		if info.yCursor == info.screenHeight-2 {
+			for y := 0; y < info.screenHeight-2; y++ {
+				for x := 0; x < info.screenWidth; x++ {
+					r, _, _, _ := info.screen.GetContent(x, y+1)
+					info.screen.SetContent(x, y, r, nil, terminalStyle)
+				}
+			}
+			putString(info.screen, info.blankLine, 0, info.screenHeight-2)
+			putString(info.screen, buffer.GetLine(info.fileBuffer), 0, info.screenHeight-2)
+		} else {
+			info.yCursor++
+		}
+		info.xCursor = x
+	}
+}
+
+func actionUp(info *info) {
+	possible, x := buffer.Up(info.fileBuffer, info.xCursor, info.mode == insertMode)
+	if possible {
+		if info.yCursor == 0 {
+			for y := info.screenHeight - 2; y > 0; y-- {
+				for x := 0; x < info.screenWidth; x++ {
+					r, _, _, _ := info.screen.GetContent(x, y-1)
+					info.screen.SetContent(x, y, r, nil, terminalStyle)
+				}
+			}
+			putString(info.screen, info.blankLine, 0, 0)
+			putString(info.screen, buffer.GetLine(info.fileBuffer), 0, 0)
+		} else {
+			info.yCursor--
+		}
+		info.xCursor = x
+	}
+}
+
+func actionLeft(info *info) {
+	possible := buffer.Left(info.fileBuffer)
+	if possible {
+		info.xCursor--
+	}
+}
+
+func actionRight(info *info) {
+	possible := buffer.Right(info.fileBuffer, info.mode == insertMode)
+	if possible {
+		info.xCursor++
+	}
+}
+
+func actionDelete(info *info) {
+	possible, newX, requiredUpdates := buffer.Remove(info.fileBuffer)
+	if possible {
+		if info.xCursor != 0 {
+			info.xCursor--
+			shiftLeft(info, requiredUpdates)
+		} else {
+			info.xCursor = newX
+			info.yCursor--
+			for x := 0; x < requiredUpdates; x++ {
+				r, _, _, _ := info.screen.GetContent(x, info.yCursor+1)
+				info.screen.SetContent(x+newX, info.yCursor, r, nil, terminalStyle)
+			}
+			shiftUp(info, info.yCursor, info.screenHeight-2)
+		}
+	}
+}
+
+func shiftLeft(info *info, requiredUpdates int) {
+	for i := info.xCursor; i <= info.xCursor+requiredUpdates; i++ {
+		r, _, _, _ := info.screen.GetContent(i+1, info.yCursor)
+		info.screen.SetContent(i, info.yCursor, r, nil, terminalStyle)
+	}
+}
+
+func shiftUp(info *info, ontoY, bottomY int) {
+	for y := ontoY + 1; y < bottomY; y++ {
+		for x := 0; x < info.screenWidth; x++ {
+			r, _, _, _ := info.screen.GetContent(x, y+1)
+			info.screen.SetContent(x, y, r, nil, terminalStyle)
+		}
+	}
+	putString(info.screen, info.blankLine, 0, bottomY)
+	putString(info.screen, buffer.GetBottom(info.fileBuffer, ontoY, bottomY), 0, bottomY)
+}
+
+func actionEnter(info *info) {
+	buffer.Add(info.fileBuffer, '\n')
+	for y := info.screenHeight - 2; y > info.yCursor+1; y-- {
+		for x := 0; x < info.screenWidth; x++ {
+			r, _, _, _ := info.screen.GetContent(x, y-1)
+			info.screen.SetContent(x, y, r, nil, terminalStyle)
+		}
+	}
+	for x := 0; x < info.screenWidth; x++ {
+		r, _, _, _ := info.screen.GetContent(x+info.xCursor, info.yCursor)
+		info.screen.SetContent(x, info.yCursor+1, r, nil, terminalStyle)
+		info.screen.SetContent(x+info.xCursor, info.yCursor, ' ', nil, terminalStyle)
+	}
+	info.xCursor = 0
+	if info.yCursor != info.screenHeight-2 {
+		info.yCursor++
+	} else {
+		for y := 0; y < info.screenHeight-2; y++ {
+			for x := 0; x < info.screenWidth; x++ {
+				r, _, _, _ := info.screen.GetContent(x, y+1)
+				info.screen.SetContent(x, y, r, nil, terminalStyle)
+			}
+		}
+		putString(info.screen, info.blankLine, 0, info.screenHeight-2)
+		putString(info.screen, buffer.GetLine(info.fileBuffer), 0, info.screenHeight-2)
+	}
+}
+
+func actionKeyPress(info *info, ev *tcell.EventKey) {
+	x, y := info.xCursor, info.yCursor
+	requiredUpdates := buffer.Add(info.fileBuffer, ev.Rune())
+	info.xCursor++
+	shiftRight(info, requiredUpdates)
+	putRune(info.screen, ev.Rune(), x, y)
+}
+
+func shiftRight(info *info, requiredUpdates int) {
+	for i := info.xCursor + requiredUpdates; i >= info.xCursor; i-- {
+		r, _, _, _ := info.screen.GetContent(i-1, info.yCursor)
+		info.screen.SetContent(i, info.yCursor, r, nil, terminalStyle)
+	}
+}
+
+func executeCommand(quit chan struct{}, info *info) {
+	if len(info.command) > 1 && info.command[0] == '/' {
+		removeHighlighting(info)
+		searchText := info.command[1:]
+		highlight(info, searchText)
+		return
+	}
+	switch info.command {
 	case ":q":
-		if buffer.CanSafeQuit(fileBuffer) {
+		if buffer.CanSafeQuit(info.fileBuffer) {
 			close(quit)
 		} else {
-			displayError(modifiedFile)
+			displayError(info, modifiedFile)
 		}
 	case ":q!":
 		close(quit)
 	case ":w":
-		write(fileBuffer)
+		write(info)
 	case ":wq":
-		saved := write(fileBuffer)
+		saved := write(info)
 		if saved {
 			close(quit)
 		}
 	default:
-		displayError(errorCommand)
+		displayError(info, errorCommand)
 	}
 }
 
-func write(fileBuffer *buffer.Info) (saved bool) {
-	err := buffer.Save(fileBuffer)
+func highlight(info *info, searchText string) {
+	xPoints, yPoints := buffer.Search(info.fileBuffer, searchText, info.yCursor, info.screenHeight)
+	length := len(searchText)
+	for i := 0; i < len(xPoints); i++ {
+		startX, y := xPoints[i], yPoints[i]
+		for x := startX; x < length+startX; x++ {
+			r, _, _, _ := info.screen.GetContent(x, y)
+			info.screen.SetContent(x, y, r, nil, highlightStyle)
+		}
+	}
+	info.search = &search{
+		xPoints: xPoints,
+		yPoints: yPoints,
+		length:  length,
+	}
+}
+
+func write(info *info) (saved bool) {
+	err := buffer.Save(info.fileBuffer)
 	if err != nil {
-		displayError(errorSave)
+		displayError(info, errorSave)
 		return false
 	}
-	mode = normalMode
+	info.mode = normalMode
 	return true
 }
 
-func putRune(r rune, x, y int) {
+func putRune(screen tcell.Screen, r rune, x, y int) {
 	puts(screen, terminalStyle, x, y, string(r))
 }
 
-func putString(s string, x, y int) {
+func putString(screen tcell.Screen, s string, x, y int) {
 	puts(screen, terminalStyle, x, y, s)
 }
 
