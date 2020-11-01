@@ -1,25 +1,3 @@
-/*
-Copyright (c) 2019 Bailey Thompson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 package buffer
 
 import (
@@ -29,35 +7,33 @@ import (
 	"strings"
 )
 
-const resizeRatio = 1.5
-const resizeAt = 0.75
-const minimumSize = 16
+const (
+	resizeRatio = 1.5
+	resizeAt    = 0.75
+	minimumSize = 16
+)
 
-type Info struct {
-	fileName       string
-	buffer         []rune
-	capacity       int
-	length         int
-	cursorIndex    int // The empty byte at the start of the gap
-	backBlockIndex int // The byte after the end of the gap
+type File struct {
+	fileName string
+	buffer   []rune
+	capacity int
+	length   int
+	// cursorIndex is the empty byte at the start of the gap
+	cursorIndex int
+	// backBlockIndex is the byte after the end of the gap
+	backBlockIndex int
 	mutated        bool
 }
 
-func Init(name string) (buf *Info, arr []rune) {
-	arr, length := readFile(name)
-	capacity := computeCapacity(length)
-	backBlockIndex := capacity - length
-	buffer := make([]rune, capacity)
-	copy(buffer[backBlockIndex:], arr)
-	buf = &Info{
-		fileName:       name,
-		buffer:         buffer,
-		capacity:       capacity,
-		length:         length,
-		backBlockIndex: backBlockIndex,
-		mutated:        false,
-	}
-	return buf, arr
+func (buf *File) Init(name string) (arr []rune) {
+	buf.fileName = name
+	buf.mutated = false
+	arr, buf.length = readFile(name)
+	buf.capacity = computeCapacity(buf.length)
+	buf.backBlockIndex = buf.capacity - buf.length
+	buf.buffer = make([]rune, buf.capacity)
+	copy(buf.buffer[buf.backBlockIndex:], arr)
+	return arr
 }
 
 func readFile(name string) (arr []rune, length int) {
@@ -81,9 +57,9 @@ func computeCapacity(length int) (capacity int) {
 	return capacity
 }
 
-func Redraw(buf *Info, yCurrent, height int) (arr []rune) {
-	start := computeStart(buf, yCurrent)
-	end := computeEnd(buf, yCurrent, height)
+func (buf *File) Redraw(yCurrent, height int) (arr []rune) {
+	start := buf.computeStart(yCurrent)
+	end := buf.computeEnd(yCurrent, height)
 	startBlock := buf.buffer[start:buf.cursorIndex]
 	endBlock := buf.buffer[buf.backBlockIndex:end]
 	arr = make([]rune, len(startBlock)+len(endBlock))
@@ -93,7 +69,7 @@ func Redraw(buf *Info, yCurrent, height int) (arr []rune) {
 	return arr
 }
 
-func computeStart(buf *Info, yCurrent int) (start int) {
+func (buf *File) computeStart(yCurrent int) (start int) {
 	start = buf.cursorIndex - 1
 	for {
 		if start < 0 || buf.buffer[start] == '\n' {
@@ -108,7 +84,7 @@ func computeStart(buf *Info, yCurrent int) (start int) {
 	return start
 }
 
-func computeEnd(buf *Info, yCurrent, height int) (end int) {
+func (buf *File) computeEnd(yCurrent, height int) (end int) {
 	end = buf.backBlockIndex
 	for {
 		if end >= buf.capacity {
@@ -125,10 +101,10 @@ func computeEnd(buf *Info, yCurrent, height int) (end int) {
 	return end
 }
 
-func Search(buf *Info, word string, yCurrent, height int) (xPoints, yPoints []int) {
+func (buf *File) Search(word string, yCurrent, height int) (xPoints, yPoints []int) {
 	xPoints, yPoints = make([]int, 0), make([]int, 0)
 	x, y := 0, 0
-	arr := Redraw(buf, yCurrent, height)
+	arr := buf.Redraw(yCurrent, height)
 	for i := 0; i < len(arr); i++ {
 		if arr[i] == '\n' {
 			x = 0
@@ -155,7 +131,7 @@ func isMatching(arr []rune, word string, index int) (isMatching bool) {
 	return true
 }
 
-func Save(buf *Info) (err error) {
+func (buf *File) Save() (err error) {
 	file, err := os.Create(buf.fileName)
 	if err != nil {
 		return err
@@ -173,11 +149,11 @@ func Save(buf *Info) (err error) {
 	return nil
 }
 
-func CanSafeQuit(buf *Info) (isPossible bool) {
+func (buf *File) CanSafeQuit() (isPossible bool) {
 	return !buf.mutated
 }
 
-func Add(buf *Info, add rune) (requiredUpdates int) {
+func (buf *File) Add(add rune) (requiredUpdates int) {
 	buf.buffer[buf.cursorIndex] = add
 	buf.length++
 	buf.cursorIndex++
@@ -192,20 +168,20 @@ func Add(buf *Info, add rune) (requiredUpdates int) {
 		buf.buffer = temp
 	}
 	buf.mutated = true
-	return computeRequiredUpdates(buf)
+	return buf.computeRequiredUpdates()
 }
 
-func Remove(buf *Info) (possible bool, newX, requiredUpdates int) {
+func (buf *File) Remove() (possible bool, newX, requiredUpdates int) {
 	if buf.cursorIndex == 0 {
 		return false, 0, 0
 	}
 	buf.length--
 	buf.cursorIndex--
 	buf.mutated = true
-	return true, computeNewX(buf), computeRequiredUpdates(buf)
+	return true, buf.computeNewX(), buf.computeRequiredUpdates()
 }
 
-func computeNewX(buf *Info) (newX int) {
+func (buf *File) computeNewX() (newX int) {
 	newX = 0
 	for i := buf.cursorIndex - 1; i >= 0 && buf.buffer[i] != '\n'; i-- {
 		newX++
@@ -213,24 +189,24 @@ func computeNewX(buf *Info) (newX int) {
 	return newX
 }
 
-func computeRequiredUpdates(buf *Info) (requiredUpdates int) {
+func (buf *File) computeRequiredUpdates() (requiredUpdates int) {
 	for i := buf.backBlockIndex; i < buf.capacity && buf.buffer[i] != '\n'; i++ {
 		requiredUpdates++
 	}
 	return requiredUpdates
 }
 
-func RemoveCurrent(buf *Info) (possible, xBack bool, requiredUpdates int) {
+func (buf *File) RemoveCurrent() (possible, xBack bool, requiredUpdates int) {
 	if buf.backBlockIndex == buf.length || buf.buffer[buf.backBlockIndex] == '\n' {
 		return false, false, 0
 	}
 	buf.length--
 	buf.backBlockIndex++
 	buf.mutated = true
-	return true, buf.buffer[buf.backBlockIndex] == '\n', computeRequiredUpdates(buf) + 1
+	return true, buf.buffer[buf.backBlockIndex] == '\n', buf.computeRequiredUpdates() + 1
 }
 
-func RemoveLine(buf *Info) (yBack, isEmpty bool) {
+func (buf *File) RemoveLine() (yBack, isEmpty bool) {
 	for i := buf.cursorIndex - 1; i >= 0 && buf.buffer[i] != '\n'; i-- {
 		buf.cursorIndex--
 		buf.length--
@@ -247,7 +223,7 @@ func RemoveLine(buf *Info) (yBack, isEmpty bool) {
 	return buf.backBlockIndex == buf.capacity, buf.length == 1
 }
 
-func RemoveRestOfLine(buf *Info) (requiredUpdates int) {
+func (buf *File) RemoveRestOfLine() (requiredUpdates int) {
 	requiredUpdates = 0
 	for i := buf.backBlockIndex; buf.buffer[i] != '\n'; i++ {
 		requiredUpdates++
@@ -258,7 +234,7 @@ func RemoveRestOfLine(buf *Info) (requiredUpdates int) {
 	return requiredUpdates
 }
 
-func Left(buf *Info) (possible bool) {
+func (buf *File) Left() (possible bool) {
 	if buf.cursorIndex == 0 || buf.buffer[buf.cursorIndex-1] == '\n' {
 		return false
 	}
@@ -268,7 +244,7 @@ func Left(buf *Info) (possible bool) {
 	return true
 }
 
-func Right(buf *Info, isInsert bool) (possible bool) {
+func (buf *File) Right(isInsert bool) (possible bool) {
 	offset := computeOffset(isInsert)
 	if buf.backBlockIndex == buf.capacity-offset ||
 		buf.buffer[buf.backBlockIndex] == '\n' ||
@@ -281,7 +257,7 @@ func Right(buf *Info, isInsert bool) (possible bool) {
 	return true
 }
 
-func Up(buf *Info, oldX int, isInsert bool) (possible bool, newX int) {
+func (buf *File) Up(oldX int, isInsert bool) (possible bool, newX int) {
 	if buf.cursorIndex == 0 {
 		return false, oldX
 	}
@@ -326,7 +302,7 @@ func Up(buf *Info, oldX int, isInsert bool) (possible bool, newX int) {
 	return true, newX
 }
 
-func Down(buf *Info, oldX int, isInsert bool) (possible bool, newX int) {
+func (buf *File) Down(oldX int, isInsert bool) (possible bool, newX int) {
 	offset := computeOffset(isInsert)
 	i := buf.backBlockIndex
 	for i < buf.capacity && buf.buffer[i] != '\n' {
@@ -356,7 +332,7 @@ func computeOffset(isInsert bool) (offset int) {
 	return 1
 }
 
-func GetBottom(buf *Info, currentY, getY int) (bottom string) {
+func (buf *File) GetBottom(currentY, getY int) (bottom string) {
 	var i int
 	deltaY := getY - currentY
 	for i = buf.backBlockIndex; i < buf.capacity; i++ {
@@ -377,7 +353,7 @@ func GetBottom(buf *Info, currentY, getY int) (bottom string) {
 	return sb.String()
 }
 
-func GetLine(buf *Info) (previous string) {
+func (buf *File) GetLine() (previous string) {
 	var sb strings.Builder
 	startIndex := buf.cursorIndex - 1
 	for i := startIndex; i >= 0 && buf.buffer[i] != '\n'; i-- {

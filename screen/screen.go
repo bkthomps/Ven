@@ -1,32 +1,10 @@
-/*
-Copyright (c) 2019 Bailey Thompson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 package screen
 
 import (
+	"log"
+
 	"github.com/bkthomps/Ven/buffer"
 	"github.com/gdamore/tcell"
-	"github.com/mattn/go-runewidth"
-	"log"
 )
 
 const (
@@ -49,7 +27,7 @@ var (
 	highlightStyle = terminalStyle.Background(tcell.ColorYellow)
 )
 
-type info struct {
+type State struct {
 	screen         tcell.Screen
 	mode           int
 	screenHeight   int
@@ -61,7 +39,7 @@ type info struct {
 	oldCommand     rune
 	blankLine      string
 	search         *search
-	fileBuffer     *buffer.Info
+	buffer         *buffer.File
 }
 
 type search struct {
@@ -70,512 +48,460 @@ type search struct {
 	length  int
 }
 
-func Init(screen tcell.Screen, quit chan struct{}, fileName string) {
-	fileBuffer, arr := buffer.Init(fileName)
-	screenInfo := &info{
-		screen:     screen,
-		mode:       normalMode,
-		fileBuffer: fileBuffer,
-	}
-	if e := screenInfo.screen.Init(); e != nil {
+func (state *State) Init(screen tcell.Screen, quit chan struct{}, fileName string) {
+	state.screen = screen
+	state.mode = normalMode
+	state.buffer = &buffer.File{}
+	arr := state.buffer.Init(fileName)
+	if e := state.screen.Init(); e != nil {
 		log.Fatal(e)
 	}
-	screenInfo.screen.SetStyle(terminalStyle)
-	screenInfo.screen.Show()
-	updateProperties(screenInfo)
-	setInitial(screenInfo, arr)
-	setColor(screenInfo.screen, screenInfo.xCursor, screenInfo.yCursor, cursorStyle)
-	displayMode(screenInfo)
-	go listener(quit, screenInfo)
+	state.screen.SetStyle(terminalStyle)
+	state.screen.Show()
+	state.updateProperties()
+	state.setInitial(arr)
+	state.setColor(state.xCursor, state.yCursor, cursorStyle)
+	state.displayMode()
+	go state.listener(quit)
 }
 
-func updateProperties(info *info) (isBigger bool) {
-	oldWidth, oldHeight := info.screenWidth, info.screenHeight
-	x, y := info.screen.Size()
-	info.screenWidth, info.screenHeight = x, y
+func (state *State) updateProperties() (isBigger bool) {
+	oldWidth, oldHeight := state.screenWidth, state.screenHeight
+	x, y := state.screen.Size()
+	state.screenWidth, state.screenHeight = x, y
 	for i := 0; i < x; i++ {
-		info.blankLine += " "
+		state.blankLine += " "
 	}
-	return oldWidth < info.screenWidth || oldHeight < info.screenHeight
+	return oldWidth < state.screenWidth || oldHeight < state.screenHeight
 }
 
-func setInitial(info *info, arr []rune) {
+func (state *State) setInitial(arr []rune) {
 	x, y := 0, 0
-	for i := 0; i < len(arr) && y < info.screenHeight-1; i++ {
+	for i := 0; i < len(arr) && y < state.screenHeight-1; i++ {
 		cur := arr[i]
 		if cur == '\n' {
 			y++
 			x = 0
-		} else if x < info.screenWidth {
-			putRune(info.screen, cur, x, y)
+		} else if x < state.screenWidth {
+			state.putRune(cur, x, y)
 			x++
 		}
 	}
-	for i := y; i < info.screenHeight-1; i++ {
-		for j := 2; j < info.screenWidth; j++ {
-			r1, _, _, _ := info.screen.GetContent(j-2, i)
-			r2, _, _, _ := info.screen.GetContent(j-1, i)
+	for i := y; i < state.screenHeight-1; i++ {
+		for j := 2; j < state.screenWidth; j++ {
+			r1, _, _, _ := state.screen.GetContent(j-2, i)
+			r2, _, _, _ := state.screen.GetContent(j-1, i)
 			if r1 == ' ' && r2 == ' ' {
 				break
 			}
-			info.screen.SetContent(j-2, i, ' ', nil, terminalStyle)
+			state.screen.SetContent(j-2, i, ' ', nil, terminalStyle)
 		}
-		putRune(info.screen, '~', 0, i)
+		state.putRune('~', 0, i)
 	}
 }
 
-func setColor(screen tcell.Screen, x, y int, s tcell.Style) {
-	r, _, _, _ := screen.GetContent(x, y)
-	screen.SetContent(x, y, r, nil, s)
+func (state *State) setColor(x, y int, s tcell.Style) {
+	r, _, _, _ := state.screen.GetContent(x, y)
+	state.screen.SetContent(x, y, r, nil, s)
 }
 
-func displayError(info *info, error string) {
-	putCommand(info, info.blankLine)
-	putCommand(info, error)
-	info.mode = commandErrorMode
-	displayMode(info)
+func (state *State) displayError(error string) {
+	state.putCommand(state.blankLine)
+	state.putCommand(error)
+	state.mode = commandErrorMode
+	state.displayMode()
 }
 
-func displayMode(info *info) {
-	switch info.mode {
+func (state *State) displayMode() {
+	switch state.mode {
 	case insertMode:
-		setColor(info.screen, info.xCursor, info.yCursor, cursorStyle)
-		putCommand(info, info.blankLine)
-		putCommand(info, insertMessage)
+		state.setColor(state.xCursor, state.yCursor, cursorStyle)
+		state.putCommand(state.blankLine)
+		state.putCommand(insertMessage)
 	case normalMode:
-		setColor(info.screen, info.xCursor, info.yCursor, cursorStyle)
-		putCommand(info, info.blankLine)
+		state.setColor(state.xCursor, state.yCursor, cursorStyle)
+		state.putCommand(state.blankLine)
 	case commandMode:
-		putCommand(info, info.blankLine)
-		putCommand(info, info.command)
-		setColor(info.screen, info.xCommandCursor, info.screenHeight-1, cursorStyle)
+		state.putCommand(state.blankLine)
+		state.putCommand(state.command)
+		state.setColor(state.xCommandCursor, state.screenHeight-1, cursorStyle)
 	case commandErrorMode:
-		setColor(info.screen, info.xCommandCursor, info.screenHeight-1, terminalStyle)
+		state.setColor(state.xCommandCursor, state.screenHeight-1, terminalStyle)
 	}
-	info.screen.Sync()
+	state.screen.Sync()
 }
 
-func putCommand(info *info, str string) {
-	puts(info.screen, terminalStyle, 0, info.screenHeight-1, str)
+func (state *State) putCommand(str string) {
+	puts(state.screen, terminalStyle, 0, state.screenHeight-1, str)
 }
 
-func listener(quit chan struct{}, info *info) {
+func (state *State) listener(quit chan struct{}) {
 	for {
-		ev := info.screen.PollEvent()
+		ev := state.screen.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
-			switch info.mode {
+			switch state.mode {
 			case insertMode:
-				executeInsertMode(info, ev)
+				state.executeInsertMode(ev)
 			case normalMode:
-				executeNormalMode(info, ev)
+				state.executeNormalMode(ev)
 			case commandMode:
-				executeCommandMode(info, ev, quit)
+				state.executeCommandMode(ev, quit)
 			case commandErrorMode:
-				info.mode = commandMode
+				state.mode = commandMode
 			}
-			displayMode(info)
+			state.displayMode()
 		case *tcell.EventResize:
-			isBigger := updateProperties(info)
-			for info.xCursor >= info.screenWidth {
-				actionLeft(info)
+			isBigger := state.updateProperties()
+			for state.xCursor >= state.screenWidth {
+				state.actionLeft()
 			}
-			for info.yCursor >= info.screenHeight-1 {
-				shiftUp(info, -1, info.screenHeight-1)
-				info.yCursor--
+			for state.yCursor >= state.screenHeight-1 {
+				state.shiftUp(-1, state.screenHeight-1)
+				state.yCursor--
 			}
 			if isBigger {
-				arr := buffer.Redraw(info.fileBuffer, info.yCursor, info.screenHeight)
-				setInitial(info, arr)
+				arr := state.buffer.Redraw(state.yCursor, state.screenHeight)
+				state.setInitial(arr)
 			}
-			displayMode(info)
+			state.displayMode()
 		}
 	}
 }
 
-func executeInsertMode(info *info, ev *tcell.EventKey) {
+func (state *State) executeInsertMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		setColor(info.screen, info.xCursor, info.yCursor, terminalStyle)
-		info.mode = normalMode
-		possible := buffer.Left(info.fileBuffer)
+		state.setColor(state.xCursor, state.yCursor, terminalStyle)
+		state.mode = normalMode
+		possible := state.buffer.Left()
 		if possible {
-			info.xCursor--
+			state.xCursor--
 		}
 	default:
-		bufferAction(info, ev)
+		state.bufferAction(ev)
 	}
 }
 
-func executeNormalMode(info *info, ev *tcell.EventKey) {
+func (state *State) executeNormalMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
-		bufferAction(info, ev)
+		state.bufferAction(ev)
 	default:
 		switch ev.Rune() {
 		case 'i':
-			info.mode = insertMode
+			state.mode = insertMode
 		case ':', '/':
-			setColor(info.screen, info.xCursor, info.yCursor, terminalStyle)
-			info.mode = commandMode
-			info.command = string(ev.Rune())
-			info.xCommandCursor = len(info.command)
+			state.setColor(state.xCursor, state.yCursor, terminalStyle)
+			state.mode = commandMode
+			state.command = string(ev.Rune())
+			state.xCommandCursor = len(state.command)
 		case 'x':
-			isPossible, xBack, requiredUpdates := buffer.RemoveCurrent(info.fileBuffer)
+			isPossible, xBack, requiredUpdates := state.buffer.RemoveCurrent()
 			if isPossible {
-				shiftLeft(info, requiredUpdates)
+				state.shiftLeft(requiredUpdates)
 				if xBack {
-					actionLeft(info)
+					state.actionLeft()
 				}
 			}
 		case 'X':
-			if info.xCursor != 0 {
-				actionLeft(info)
-				isPossible, _, requiredUpdates := buffer.RemoveCurrent(info.fileBuffer)
+			if state.xCursor != 0 {
+				state.actionLeft()
+				isPossible, _, requiredUpdates := state.buffer.RemoveCurrent()
 				if isPossible {
-					shiftLeft(info, requiredUpdates)
+					state.shiftLeft(requiredUpdates)
 				}
 			}
 		case 'd':
-			if info.oldCommand == 'd' {
-				info.xCursor = 0
-				shiftUp(info, info.yCursor-1, info.screenHeight-2)
-				yBack, isEmpty := buffer.RemoveLine(info.fileBuffer)
+			if state.oldCommand == 'd' {
+				state.xCursor = 0
+				state.shiftUp(state.yCursor-1, state.screenHeight-2)
+				yBack, isEmpty := state.buffer.RemoveLine()
 				if yBack {
-					actionUp(info)
+					state.actionUp()
 				}
 				if isEmpty {
-					info.screen.SetContent(0, 0, ' ', nil, terminalStyle)
+					state.screen.SetContent(0, 0, ' ', nil, terminalStyle)
 				}
-				info.oldCommand = '_'
+				state.oldCommand = '_'
 			} else {
-				info.oldCommand = ev.Rune()
+				state.oldCommand = ev.Rune()
 			}
 		case 'D':
-			requiredUpdates := buffer.RemoveRestOfLine(info.fileBuffer)
-			for i := info.xCursor; i <= info.xCursor+requiredUpdates; i++ {
-				info.screen.SetContent(i, info.yCursor, ' ', nil, terminalStyle)
+			requiredUpdates := state.buffer.RemoveRestOfLine()
+			for i := state.xCursor; i <= state.xCursor+requiredUpdates; i++ {
+				state.screen.SetContent(i, state.yCursor, ' ', nil, terminalStyle)
 			}
-			if info.xCursor > 0 {
-				actionLeft(info)
+			if state.xCursor > 0 {
+				state.actionLeft()
 			}
 		}
 	}
 }
 
-func executeCommandMode(info *info, ev *tcell.EventKey, quit chan struct{}) {
+func (state *State) executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		removeHighlighting(info)
-		info.mode = normalMode
+		state.removeHighlighting()
+		state.mode = normalMode
 	case tcell.KeyEnter:
-		executeCommand(quit, info)
+		state.executeCommand(quit)
 	case tcell.KeyDEL:
-		if info.xCommandCursor <= 1 && len(info.command) > 1 {
+		if state.xCommandCursor <= 1 && len(state.command) > 1 {
 			break
 		}
-		runeCopy := []rune(info.command)
-		copy(runeCopy[info.xCommandCursor-1:], runeCopy[info.xCommandCursor:])
+		runeCopy := []rune(state.command)
+		copy(runeCopy[state.xCommandCursor-1:], runeCopy[state.xCommandCursor:])
 		shrinkSize := len(runeCopy) - 1
 		runeCopy = runeCopy[:shrinkSize]
-		info.command = string(runeCopy)
+		state.command = string(runeCopy)
 		if shrinkSize == 0 {
-			removeHighlighting(info)
-			info.mode = normalMode
+			state.removeHighlighting()
+			state.mode = normalMode
 		}
-		info.xCommandCursor--
+		state.xCommandCursor--
 	case tcell.KeyDown, tcell.KeyUp:
 		// Do Nothing
 	case tcell.KeyLeft:
-		if info.xCommandCursor > 1 {
-			info.xCommandCursor--
+		if state.xCommandCursor > 1 {
+			state.xCommandCursor--
 		}
 	case tcell.KeyRight:
-		if info.xCommandCursor < len(info.command) {
-			info.xCommandCursor++
+		if state.xCommandCursor < len(state.command) {
+			state.xCommandCursor++
 		}
 	default:
-		info.command += string(ev.Rune())
-		info.xCommandCursor++
+		state.command += string(ev.Rune())
+		state.xCommandCursor++
 	}
 }
 
-func removeHighlighting(info *info) {
-	search := info.search
+func (state *State) removeHighlighting() {
+	search := state.search
 	if search == nil {
 		return
 	}
 	for i := 0; i < len(search.xPoints); i++ {
 		startX, y := search.xPoints[i], search.yPoints[i]
 		for x := startX; x < search.length+startX; x++ {
-			r, _, _, _ := info.screen.GetContent(x, y)
-			info.screen.SetContent(x, y, r, nil, terminalStyle)
+			r, _, _, _ := state.screen.GetContent(x, y)
+			state.screen.SetContent(x, y, r, nil, terminalStyle)
 		}
 	}
-	info.search = nil
+	state.search = nil
 }
 
-func bufferAction(info *info, ev *tcell.EventKey) {
-	setColor(info.screen, info.xCursor, info.yCursor, terminalStyle)
+func (state *State) bufferAction(ev *tcell.EventKey) {
+	state.setColor(state.xCursor, state.yCursor, terminalStyle)
 	switch ev.Key() {
 	case tcell.KeyDown:
-		actionDown(info)
+		state.actionDown()
 	case tcell.KeyUp:
-		actionUp(info)
+		state.actionUp()
 	case tcell.KeyLeft:
-		actionLeft(info)
+		state.actionLeft()
 	case tcell.KeyRight:
-		actionRight(info)
+		state.actionRight()
 	case tcell.KeyDEL:
-		actionDelete(info)
+		state.actionDelete()
 	case tcell.KeyEnter:
-		actionEnter(info)
+		state.actionEnter()
 	default:
-		actionKeyPress(info, ev)
+		state.actionKeyPress(ev)
 	}
-	setColor(info.screen, info.xCursor, info.yCursor, cursorStyle)
+	state.setColor(state.xCursor, state.yCursor, cursorStyle)
 }
 
-func actionDown(info *info) {
-	possible, x := buffer.Down(info.fileBuffer, info.xCursor, info.mode == insertMode)
+func (state *State) actionDown() {
+	possible, x := state.buffer.Down(state.xCursor, state.mode == insertMode)
 	if possible {
-		if info.yCursor == info.screenHeight-2 {
-			for y := 0; y < info.screenHeight-2; y++ {
-				for x := 0; x < info.screenWidth; x++ {
-					r, _, _, _ := info.screen.GetContent(x, y+1)
-					info.screen.SetContent(x, y, r, nil, terminalStyle)
+		if state.yCursor == state.screenHeight-2 {
+			for y := 0; y < state.screenHeight-2; y++ {
+				for x := 0; x < state.screenWidth; x++ {
+					r, _, _, _ := state.screen.GetContent(x, y+1)
+					state.screen.SetContent(x, y, r, nil, terminalStyle)
 				}
 			}
-			putString(info.screen, info.blankLine, 0, info.screenHeight-2)
-			putString(info.screen, buffer.GetLine(info.fileBuffer), 0, info.screenHeight-2)
+			state.putString(state.blankLine, 0, state.screenHeight-2)
+			state.putString(state.buffer.GetLine(), 0, state.screenHeight-2)
 		} else {
-			info.yCursor++
+			state.yCursor++
 		}
-		info.xCursor = x
+		state.xCursor = x
 	}
 }
 
-func actionUp(info *info) {
-	possible, x := buffer.Up(info.fileBuffer, info.xCursor, info.mode == insertMode)
+func (state *State) actionUp() {
+	possible, x := state.buffer.Up(state.xCursor, state.mode == insertMode)
 	if possible {
-		if info.yCursor == 0 {
-			for y := info.screenHeight - 2; y > 0; y-- {
-				for x := 0; x < info.screenWidth; x++ {
-					r, _, _, _ := info.screen.GetContent(x, y-1)
-					info.screen.SetContent(x, y, r, nil, terminalStyle)
+		if state.yCursor == 0 {
+			for y := state.screenHeight - 2; y > 0; y-- {
+				for x := 0; x < state.screenWidth; x++ {
+					r, _, _, _ := state.screen.GetContent(x, y-1)
+					state.screen.SetContent(x, y, r, nil, terminalStyle)
 				}
 			}
-			putString(info.screen, info.blankLine, 0, 0)
-			putString(info.screen, buffer.GetLine(info.fileBuffer), 0, 0)
+			state.putString(state.blankLine, 0, 0)
+			state.putString(state.buffer.GetLine(), 0, 0)
 		} else {
-			info.yCursor--
+			state.yCursor--
 		}
-		info.xCursor = x
+		state.xCursor = x
 	}
 }
 
-func actionLeft(info *info) {
-	possible := buffer.Left(info.fileBuffer)
+func (state *State) actionLeft() {
+	possible := state.buffer.Left()
 	if possible {
-		info.xCursor--
+		state.xCursor--
 	}
 }
 
-func actionRight(info *info) {
-	possible := buffer.Right(info.fileBuffer, info.mode == insertMode)
+func (state *State) actionRight() {
+	possible := state.buffer.Right(state.mode == insertMode)
 	if possible {
-		info.xCursor++
+		state.xCursor++
 	}
 }
 
-func actionDelete(info *info) {
-	possible, newX, requiredUpdates := buffer.Remove(info.fileBuffer)
+func (state *State) actionDelete() {
+	possible, newX, requiredUpdates := state.buffer.Remove()
 	if possible {
-		if info.xCursor != 0 {
-			info.xCursor--
-			shiftLeft(info, requiredUpdates)
+		if state.xCursor != 0 {
+			state.xCursor--
+			state.shiftLeft(requiredUpdates)
 		} else {
-			info.xCursor = newX
-			info.yCursor--
+			state.xCursor = newX
+			state.yCursor--
 			for x := 0; x < requiredUpdates; x++ {
-				r, _, _, _ := info.screen.GetContent(x, info.yCursor+1)
-				info.screen.SetContent(x+newX, info.yCursor, r, nil, terminalStyle)
+				r, _, _, _ := state.screen.GetContent(x, state.yCursor+1)
+				state.screen.SetContent(x+newX, state.yCursor, r, nil, terminalStyle)
 			}
-			shiftUp(info, info.yCursor, info.screenHeight-2)
+			state.shiftUp(state.yCursor, state.screenHeight-2)
 		}
 	}
 }
 
-func shiftLeft(info *info, requiredUpdates int) {
-	for i := info.xCursor; i <= info.xCursor+requiredUpdates; i++ {
-		r, _, _, _ := info.screen.GetContent(i+1, info.yCursor)
-		info.screen.SetContent(i, info.yCursor, r, nil, terminalStyle)
+func (state *State) shiftLeft(requiredUpdates int) {
+	for i := state.xCursor; i <= state.xCursor+requiredUpdates; i++ {
+		r, _, _, _ := state.screen.GetContent(i+1, state.yCursor)
+		state.screen.SetContent(i, state.yCursor, r, nil, terminalStyle)
 	}
 }
 
-func shiftUp(info *info, ontoY, bottomY int) {
+func (state *State) shiftUp(ontoY, bottomY int) {
 	for y := ontoY + 1; y < bottomY; y++ {
-		for x := 0; x < info.screenWidth; x++ {
-			r, _, _, _ := info.screen.GetContent(x, y+1)
-			info.screen.SetContent(x, y, r, nil, terminalStyle)
+		for x := 0; x < state.screenWidth; x++ {
+			r, _, _, _ := state.screen.GetContent(x, y+1)
+			state.screen.SetContent(x, y, r, nil, terminalStyle)
 		}
 	}
-	putString(info.screen, info.blankLine, 0, bottomY)
-	putString(info.screen, buffer.GetBottom(info.fileBuffer, ontoY, bottomY), 0, bottomY)
+	state.putString(state.blankLine, 0, bottomY)
+	state.putString(state.buffer.GetBottom(ontoY, bottomY), 0, bottomY)
 }
 
-func actionEnter(info *info) {
-	buffer.Add(info.fileBuffer, '\n')
-	for y := info.screenHeight - 2; y > info.yCursor+1; y-- {
-		for x := 0; x < info.screenWidth; x++ {
-			r, _, _, _ := info.screen.GetContent(x, y-1)
-			info.screen.SetContent(x, y, r, nil, terminalStyle)
+func (state *State) actionEnter() {
+	state.buffer.Add('\n')
+	for y := state.screenHeight - 2; y > state.yCursor+1; y-- {
+		for x := 0; x < state.screenWidth; x++ {
+			r, _, _, _ := state.screen.GetContent(x, y-1)
+			state.screen.SetContent(x, y, r, nil, terminalStyle)
 		}
 	}
-	for x := 0; x < info.screenWidth; x++ {
-		r, _, _, _ := info.screen.GetContent(x+info.xCursor, info.yCursor)
-		info.screen.SetContent(x, info.yCursor+1, r, nil, terminalStyle)
-		info.screen.SetContent(x+info.xCursor, info.yCursor, ' ', nil, terminalStyle)
+	for x := 0; x < state.screenWidth; x++ {
+		r, _, _, _ := state.screen.GetContent(x+state.xCursor, state.yCursor)
+		state.screen.SetContent(x, state.yCursor+1, r, nil, terminalStyle)
+		state.screen.SetContent(x+state.xCursor, state.yCursor, ' ', nil, terminalStyle)
 	}
-	info.xCursor = 0
-	if info.yCursor != info.screenHeight-2 {
-		info.yCursor++
+	state.xCursor = 0
+	if state.yCursor != state.screenHeight-2 {
+		state.yCursor++
 	} else {
-		for y := 0; y < info.screenHeight-2; y++ {
-			for x := 0; x < info.screenWidth; x++ {
-				r, _, _, _ := info.screen.GetContent(x, y+1)
-				info.screen.SetContent(x, y, r, nil, terminalStyle)
+		for y := 0; y < state.screenHeight-2; y++ {
+			for x := 0; x < state.screenWidth; x++ {
+				r, _, _, _ := state.screen.GetContent(x, y+1)
+				state.screen.SetContent(x, y, r, nil, terminalStyle)
 			}
 		}
-		putString(info.screen, info.blankLine, 0, info.screenHeight-2)
-		putString(info.screen, buffer.GetLine(info.fileBuffer), 0, info.screenHeight-2)
+		state.putString(state.blankLine, 0, state.screenHeight-2)
+		state.putString(state.buffer.GetLine(), 0, state.screenHeight-2)
 	}
 }
 
-func actionKeyPress(info *info, ev *tcell.EventKey) {
-	x, y := info.xCursor, info.yCursor
-	requiredUpdates := buffer.Add(info.fileBuffer, ev.Rune())
-	info.xCursor++
-	shiftRight(info, requiredUpdates)
-	putRune(info.screen, ev.Rune(), x, y)
+func (state *State) actionKeyPress(ev *tcell.EventKey) {
+	x, y := state.xCursor, state.yCursor
+	requiredUpdates := state.buffer.Add(ev.Rune())
+	state.xCursor++
+	state.shiftRight(requiredUpdates)
+	state.putRune(ev.Rune(), x, y)
 }
 
-func shiftRight(info *info, requiredUpdates int) {
-	for i := info.xCursor + requiredUpdates; i >= info.xCursor; i-- {
-		r, _, _, _ := info.screen.GetContent(i-1, info.yCursor)
-		info.screen.SetContent(i, info.yCursor, r, nil, terminalStyle)
+func (state *State) shiftRight(requiredUpdates int) {
+	for i := state.xCursor + requiredUpdates; i >= state.xCursor; i-- {
+		r, _, _, _ := state.screen.GetContent(i-1, state.yCursor)
+		state.screen.SetContent(i, state.yCursor, r, nil, terminalStyle)
 	}
 }
 
-func executeCommand(quit chan struct{}, info *info) {
-	if len(info.command) > 1 && info.command[0] == '/' {
-		removeHighlighting(info)
-		searchText := info.command[1:]
-		highlight(info, searchText)
+func (state *State) executeCommand(quit chan struct{}) {
+	if len(state.command) > 1 && state.command[0] == '/' {
+		state.removeHighlighting()
+		searchText := state.command[1:]
+		state.highlight(searchText)
 		return
 	}
-	switch info.command {
+	switch state.command {
 	case ":q":
-		if buffer.CanSafeQuit(info.fileBuffer) {
+		if state.buffer.CanSafeQuit() {
 			close(quit)
 		} else {
-			displayError(info, modifiedFile)
+			state.displayError(modifiedFile)
 		}
 	case ":q!":
 		close(quit)
 	case ":w":
-		write(info)
+		state.write()
 	case ":wq":
-		saved := write(info)
+		saved := state.write()
 		if saved {
 			close(quit)
 		}
 	default:
-		displayError(info, errorCommand)
+		state.displayError(errorCommand)
 	}
 }
 
-func highlight(info *info, searchText string) {
-	xPoints, yPoints := buffer.Search(info.fileBuffer, searchText, info.yCursor, info.screenHeight)
+func (state *State) highlight(searchText string) {
+	xPoints, yPoints := state.buffer.Search(searchText, state.yCursor, state.screenHeight)
 	length := len(searchText)
 	for i := 0; i < len(xPoints); i++ {
 		startX, y := xPoints[i], yPoints[i]
 		for x := startX; x < length+startX; x++ {
-			r, _, _, _ := info.screen.GetContent(x, y)
-			info.screen.SetContent(x, y, r, nil, highlightStyle)
+			r, _, _, _ := state.screen.GetContent(x, y)
+			state.screen.SetContent(x, y, r, nil, highlightStyle)
 		}
 	}
-	info.search = &search{
+	state.search = &search{
 		xPoints: xPoints,
 		yPoints: yPoints,
 		length:  length,
 	}
 }
 
-func write(info *info) (saved bool) {
-	err := buffer.Save(info.fileBuffer)
+func (state *State) write() (saved bool) {
+	err := state.buffer.Save()
 	if err != nil {
-		displayError(info, errorSave)
+		state.displayError(errorSave)
 		return false
 	}
-	info.mode = normalMode
+	state.mode = normalMode
 	return true
 }
 
-func putRune(screen tcell.Screen, r rune, x, y int) {
-	puts(screen, terminalStyle, x, y, string(r))
+func (state *State) putRune(r rune, x, y int) {
+	puts(state.screen, terminalStyle, x, y, string(r))
 }
 
-func putString(screen tcell.Screen, s string, x, y int) {
-	puts(screen, terminalStyle, x, y, s)
-}
-
-// This function is from: https://github.com/gdamore/tcell/blob/master/_demos/unicode.go
-func puts(s tcell.Screen, style tcell.Style, x, y int, str string) {
-	i := 0
-	var deferred []rune
-	dwidth := 0
-	zwj := false
-	for _, r := range str {
-		if r == '\u200d' {
-			if len(deferred) == 0 {
-				deferred = append(deferred, ' ')
-				dwidth = 1
-			}
-			deferred = append(deferred, r)
-			zwj = true
-			continue
-		}
-		if zwj {
-			deferred = append(deferred, r)
-			zwj = false
-			continue
-		}
-		switch runewidth.RuneWidth(r) {
-		case 0:
-			if len(deferred) == 0 {
-				deferred = append(deferred, ' ')
-				dwidth = 1
-			}
-		case 1:
-			if len(deferred) != 0 {
-				s.SetContent(x+i, y, deferred[0], deferred[1:], style)
-				i += dwidth
-			}
-			deferred = nil
-			dwidth = 1
-		case 2:
-			if len(deferred) != 0 {
-				s.SetContent(x+i, y, deferred[0], deferred[1:], style)
-				i += dwidth
-			}
-			deferred = nil
-			dwidth = 2
-		}
-		deferred = append(deferred, r)
-	}
-	if len(deferred) != 0 {
-		s.SetContent(x+i, y, deferred[0], deferred[1:], style)
-		i += dwidth
-	}
+func (state *State) putString(s string, x, y int) {
+	puts(state.screen, terminalStyle, x, y, s)
 }
