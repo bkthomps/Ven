@@ -1,62 +1,69 @@
 package buffer
 
-func (file *File) Left() (spaces int) {
-	if file.offset == 0 {
+func (file *File) Left() (xPosition int) {
+	if file.runeOffset == 0 {
 		return 0
 	}
-	file.offset--
-	if file.Current.Data[file.offset] == '\t' {
-		return TabSize
+	file.runeOffset--
+	if file.Current.Data[file.runeOffset] == '\t' {
+		file.spacingOffset -= TabSize
+	} else {
+		file.spacingOffset--
 	}
-	return 1
+	return file.spacingOffset
 }
 
-func (file *File) Right(isInsert bool) (spaces int) {
-	insertOffset := 0
-	if isInsert {
-		insertOffset = 1
+func (file *File) Right(isInsert bool) (xPosition int) {
+	if file.runeOffset >= len(file.Current.Data)+insertOffset(isInsert)-1 {
+		return file.spacingOffset
 	}
-	if file.offset >= len(file.Current.Data)+insertOffset-1 {
-		return 0
+	if file.Current.Data[file.runeOffset] == '\t' {
+		file.spacingOffset += TabSize
+	} else {
+		file.spacingOffset++
 	}
-	if file.Current.Data[file.offset] == '\t' {
-		file.offset++
-		return TabSize
-	}
-	file.offset++
-	return 1
+	file.runeOffset++
+	return file.spacingOffset
 }
 
 func (file *File) Up(isInsert bool) (wasPossible bool, xPosition int) {
 	if file.Current == file.First {
-		return false, 0
-	}
-	insertOffset := 0
-	if isInsert {
-		insertOffset = 1
+		return false, file.spacingOffset
 	}
 	file.Current = file.Current.Prev
-	if file.offset >= len(file.Current.Data)+insertOffset {
-		// TODO: this should take into account tabs
-	}
-	// TODO: don't always return 0
-	file.offset = 0
-	return true, file.offset
+	file.calculateOffset(isInsert)
+	return true, file.spacingOffset
 }
 
 func (file *File) Down(isInsert bool) (wasPossible bool, xPosition int) {
 	if file.Current == file.last {
-		return false, 0
-	}
-	insertOffset := 0
-	if isInsert {
-		insertOffset = 1
+		return false, file.spacingOffset
 	}
 	file.Current = file.Current.Next
-	if file.offset >= len(file.Current.Data)+insertOffset {
-		// TODO: this should take into account tabs
+	file.calculateOffset(isInsert)
+	return true, file.spacingOffset
+}
+
+func insertOffset(isInsert bool) int {
+	if isInsert {
+		return 1
 	}
-	// TODO: don't always return 0
-	file.offset = 0
-	return true, file.offset
+	return 0
+}
+
+func (file *File) calculateOffset(isInsert bool) {
+	oldSpacingOffset := file.spacingOffset
+	file.runeOffset = 0
+	file.spacingOffset = 0
+	for _, r := range file.Current.Data {
+		currentSpacing := 1
+		if r == '\t' {
+			currentSpacing = TabSize
+		}
+		if file.spacingOffset+currentSpacing > oldSpacingOffset+insertOffset(isInsert) {
+			break
+		}
+		file.runeOffset++
+		file.spacingOffset += currentSpacing
+	}
 }

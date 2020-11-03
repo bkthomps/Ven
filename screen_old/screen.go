@@ -113,23 +113,6 @@ func (state *State) executeCommand(quit chan struct{}) {
 	}
 }
 
-func (state *State) highlight(searchText string) {
-	xPoints, yPoints := state.buffer.Search(searchText, state.yCursor, state.screenHeight)
-	length := len(searchText)
-	for i := 0; i < len(xPoints); i++ {
-		startX, y := xPoints[i], yPoints[i]
-		for x := startX; x < length+startX; x++ {
-			r, _, _, _ := state.screen.GetContent(x, y)
-			state.screen.SetContent(x, y, r, nil, highlightStyle)
-		}
-	}
-	state.search = &search{
-		xPoints: xPoints,
-		yPoints: yPoints,
-		length:  length,
-	}
-}
-
 func (state *State) write() (saved bool) {
 	err := state.buffer.Save()
 	if err != nil {
@@ -138,18 +121,4 @@ func (state *State) write() (saved bool) {
 	}
 	state.mode = normalMode
 	return true
-}
-
-func (state *State) putRune(r rune, x, y int) {
-	if r == '\t' {
-		for i := 0; i < 4; i++ {
-			state.putRune(' ', x, y)
-		}
-		return
-	}
-	puts(state.screen, terminalStyle, x, y, string(r))
-}
-
-func (state *State) putString(s string, x, y int) {
-	puts(state.screen, terminalStyle, x, y, s)
 }

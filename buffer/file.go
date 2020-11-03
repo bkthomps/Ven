@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 )
@@ -15,8 +16,10 @@ type File struct {
 	last  *Line
 
 	Current *Line
-	offset  int
 	lines   int
+
+	runeOffset    int
+	spacingOffset int
 }
 
 func (file *File) Init(fileName string) {
@@ -27,8 +30,9 @@ func (file *File) Init(fileName string) {
 	file.First = line
 	file.last = line
 	file.Current = line
-	file.offset = 0
 	file.lines = 1
+	file.runeOffset = 0
+	file.spacingOffset = 0
 	arr := readFile(fileName)
 	for _, character := range arr {
 		file.Add(character)
@@ -47,4 +51,27 @@ func readFile(fileName string) (arr []rune) {
 		arr = append(arr, '\n')
 	}
 	return arr
+}
+
+func (file *File) CanSafeQuit() bool {
+	return !file.mutated
+}
+
+func (file *File) Save() error {
+	osFile, err := os.Create(file.fileName)
+	if err != nil {
+		return err
+	}
+	arr := make([]rune, 0)
+	for traverse := file.First; traverse != nil; traverse = traverse.Next {
+		arr = append(arr, traverse.Data...)
+		arr = append(arr, '\n')
+	}
+	_, err = fmt.Fprintf(osFile, string(arr))
+	if err != nil {
+		return err
+	}
+	_ = osFile.Close()
+	file.mutated = false
+	return nil
 }

@@ -292,9 +292,9 @@ func (screen *Screen) actionUp() {
 }
 
 func (screen *Screen) actionLeft() {
-	screen.file.xCursor -= screen.file.buffer.Left()
+	screen.file.xCursor = screen.file.buffer.Left()
 }
 
 func (screen *Screen) actionRight() {
-	screen.file.xCursor += screen.file.buffer.Right(screen.mode == insertMode)
+	screen.file.xCursor = screen.file.buffer.Right(screen.mode == insertMode)
 }
