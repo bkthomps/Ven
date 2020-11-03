@@ -152,20 +152,20 @@ func (screen *Screen) listener(quit chan struct{}) {
 			}
 			screen.displayMode()
 		case *tcell.EventResize:
-			/*
-				isBigger := state.updateProperties()
-				for state.xCursor >= state.screenWidth {
-					state.actionLeft()
-				}
-				for state.yCursor >= state.screenHeight-1 {
-					state.shiftUp(-1, state.screenHeight-1)
-					state.yCursor--
-				}
-				if isBigger {
-					arr := state.buffer.Redraw(state.yCursor, state.screenHeight)
-					state.setInitial(arr)
-				}
-				state.displayMode()
+			/* TODO
+			isBigger := state.updateProperties()
+			for state.xCursor >= state.screenWidth {
+				state.actionLeft()
+			}
+			for state.yCursor >= state.screenHeight-1 {
+				state.shiftUp(-1, state.screenHeight-1)
+				state.yCursor--
+			}
+			if isBigger {
+				arr := state.buffer.Redraw(state.yCursor, state.screenHeight)
+				state.setInitial(arr)
+			}
+			state.displayMode()
 			*/
 		}
 	}
@@ -208,10 +208,10 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		//screen.removeHighlighting() TODO
+		// TODO: remove highlighting
 		screen.mode = normalMode
 	case tcell.KeyEnter:
-		//screen.executeCommand(quit) TODO
+		screen.executeCommand(quit)
 	case tcell.KeyDEL:
 		if screen.command.xCursor <= 1 && len(screen.command.current) > 1 {
 			break
@@ -222,7 +222,7 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 		runeCopy = runeCopy[:shrinkSize]
 		screen.command.current = string(runeCopy)
 		if shrinkSize == 0 {
-			//screen.removeHighlighting() TODO
+			// TODO: remove highlighting
 			screen.mode = normalMode
 		}
 		screen.command.xCursor--
@@ -254,11 +254,11 @@ func (screen *Screen) bufferAction(ev *tcell.EventKey) {
 	case tcell.KeyRight:
 		screen.actionRight()
 	case tcell.KeyDEL:
-		//state.actionDelete() TODO
+		screen.actionDelete()
 	case tcell.KeyEnter:
-		//state.actionEnter() TODO
+		screen.actionEnter()
 	default:
-		//state.actionKeyPress(ev) TODO
+		screen.actionKeyPress(ev)
 	}
 	screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 }
@@ -297,4 +297,67 @@ func (screen *Screen) actionLeft() {
 
 func (screen *Screen) actionRight() {
 	screen.file.xCursor = screen.file.buffer.Right(screen.mode == insertMode)
+}
+
+func (screen *Screen) actionDelete() {
+	x, deletedLine := screen.file.buffer.RemoveBefore()
+	screen.file.xCursor = x
+	if deletedLine {
+		// TODO
+	}
+}
+
+// TODO: can merge with next function
+func (screen *Screen) actionEnter() {
+	x, addedLine := screen.file.buffer.Add('\n')
+	screen.file.xCursor = x
+	if addedLine {
+		// TODO: what if last line?
+		screen.file.yCursor++
+	}
+}
+
+func (screen *Screen) actionKeyPress(ev *tcell.EventKey) {
+	x, addedLine := screen.file.buffer.Add(ev.Rune())
+	screen.file.xCursor = x
+	if addedLine {
+		// TODO: what if last line?
+		screen.file.yCursor++
+	}
+}
+
+func (screen *Screen) executeCommand(quit chan struct{}) {
+	if len(screen.command.current) > 1 && screen.command.current[0] == '/' {
+		// TODO: searching
+		return
+	}
+	switch screen.command.current {
+	case ":q":
+		if screen.file.buffer.CanSafeQuit() {
+			close(quit)
+		} else {
+			screen.displayError(modifiedFile)
+		}
+	case ":q!":
+		close(quit)
+	case ":w":
+		screen.write()
+	case ":wq":
+		saved := screen.write()
+		if saved {
+			close(quit)
+		}
+	default:
+		screen.displayError(errorCommand)
+	}
+}
+
+func (screen *Screen) write() (saved bool) {
+	err := screen.file.buffer.Save()
+	if err != nil {
+		screen.displayError(errorSave)
+		return false
+	}
+	screen.mode = normalMode
+	return true
 }

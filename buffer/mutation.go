@@ -1,6 +1,7 @@
 package buffer
 
 func (file *File) Add(character rune) (xPosition int, addedLine bool) {
+	file.mutated = true
 	if character == '\n' {
 		file.addLine()
 		file.runeOffset = 0
@@ -32,6 +33,7 @@ func (file *File) addLine() {
 
 func (file *File) Remove() (xPosition int) {
 	if len(file.Current.Data) > 0 {
+		file.mutated = true
 		if file.runeOffset == len(file.Current.Data)-1 {
 			if file.Current.Data[file.runeOffset] == '\t' {
 				file.spacingOffset -= TabSize
@@ -45,10 +47,11 @@ func (file *File) Remove() (xPosition int) {
 	return file.spacingOffset
 }
 
-func (file *File) RemoveBefore() (xPosition int) {
+func (file *File) RemoveBefore() (xPosition int, deletedLine bool) {
+	file.mutated = true
 	if file.runeOffset == 0 {
 		// TODO: merge with precedent line
-		return file.spacingOffset
+		return file.spacingOffset, true
 	}
 	file.runeOffset--
 	if file.Current.Data[file.runeOffset] == '\t' {
@@ -57,10 +60,11 @@ func (file *File) RemoveBefore() (xPosition int) {
 		file.spacingOffset--
 	}
 	file.Current.RemoveAt(file.runeOffset)
-	return file.spacingOffset
+	return file.spacingOffset, false
 }
 
 func (file *File) RemoveLine(isInsert bool) (xPosition int) {
+	file.mutated = true
 	if file.lines == 1 {
 		line := &Line{}
 		line.Init(nil, nil)
@@ -96,6 +100,7 @@ func (file *File) RemoveLine(isInsert bool) (xPosition int) {
 }
 
 func (file *File) RemoveRestOfLine(isInsert bool) (xPosition int) {
+	file.mutated = true
 	if file.runeOffset == 0 {
 		file.Current.Data = []rune{}
 		file.runeOffset = 0
