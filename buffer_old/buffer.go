@@ -1,4 +1,4 @@
-package buffer
+package buffer_old
 
 import (
 	"fmt"
@@ -171,14 +171,19 @@ func (buf *File) Add(add rune) (requiredUpdates int) {
 	return buf.computeRequiredUpdates()
 }
 
-func (buf *File) Remove() (possible bool, newX, requiredUpdates int) {
+func (buf *File) Remove() (possible bool, newX, requiredUpdates, spacing int) {
 	if buf.cursorIndex == 0 {
-		return false, 0, 0
+		return false, 0, 0, 0
+	}
+	if buf.buffer[buf.cursorIndex-1] == '\t' {
+		spacing = 4 + 1
+	} else {
+		spacing = 1
 	}
 	buf.length--
 	buf.cursorIndex--
 	buf.mutated = true
-	return true, buf.computeNewX(), buf.computeRequiredUpdates()
+	return true, buf.computeNewX(), buf.computeRequiredUpdates(), spacing
 }
 
 func (buf *File) computeNewX() (newX int) {
@@ -234,27 +239,34 @@ func (buf *File) RemoveRestOfLine() (requiredUpdates int) {
 	return requiredUpdates
 }
 
-func (buf *File) Left() (possible bool) {
+func (buf *File) Left() (characters int) {
 	if buf.cursorIndex == 0 || buf.buffer[buf.cursorIndex-1] == '\n' {
-		return false
+		return 0
 	}
+	char := buf.buffer[buf.backBlockIndex]
 	buf.cursorIndex--
 	buf.backBlockIndex--
 	buf.buffer[buf.backBlockIndex] = buf.buffer[buf.cursorIndex]
-	return true
+	if char == '\t' {
+		return 4 + 1
+	}
+	return 1
 }
 
-func (buf *File) Right(isInsert bool) (possible bool) {
+func (buf *File) Right(isInsert bool) (characters int) {
 	offset := computeOffset(isInsert)
 	if buf.backBlockIndex == buf.capacity-offset ||
 		buf.buffer[buf.backBlockIndex] == '\n' ||
 		buf.buffer[buf.backBlockIndex+offset] == '\n' {
-		return false
+		return 0
 	}
 	buf.buffer[buf.cursorIndex] = buf.buffer[buf.backBlockIndex]
 	buf.cursorIndex++
 	buf.backBlockIndex++
-	return true
+	if buf.buffer[buf.backBlockIndex+offset-1] == '\t' {
+		return 4 + 1
+	}
+	return 1
 }
 
 func (buf *File) Up(oldX int, isInsert bool) (possible bool, newX int) {
