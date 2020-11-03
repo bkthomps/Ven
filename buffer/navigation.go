@@ -14,7 +14,11 @@ func (file *File) Left() (xPosition int) {
 }
 
 func (file *File) Right(isInsert bool) (xPosition int) {
-	if file.runeOffset >= len(file.Current.Data)+insertOffset(isInsert)-1 {
+	insertOffset := 0
+	if isInsert {
+		insertOffset = 1
+	}
+	if file.runeOffset >= len(file.Current.Data)+insertOffset-1 {
 		return file.spacingOffset
 	}
 	if file.Current.Data[file.runeOffset] == '\t' {
@@ -44,26 +48,31 @@ func (file *File) Down(isInsert bool) (wasPossible bool, xPosition int) {
 	return true, file.spacingOffset
 }
 
-func insertOffset(isInsert bool) int {
-	if isInsert {
-		return 1
-	}
-	return 0
-}
-
 func (file *File) calculateOffset(isInsert bool) {
+	if len(file.Current.Data) == 0 {
+		file.runeOffset = 0
+		file.spacingOffset = 0
+		return
+	}
 	oldSpacingOffset := file.spacingOffset
-	file.runeOffset = 0
-	file.spacingOffset = 0
+	file.runeOffset = -1
+	file.spacingOffset = -1
 	for _, r := range file.Current.Data {
 		currentSpacing := 1
 		if r == '\t' {
 			currentSpacing = TabSize
 		}
-		if file.spacingOffset+currentSpacing > oldSpacingOffset+insertOffset(isInsert) {
-			break
+		if file.spacingOffset+currentSpacing > oldSpacingOffset {
+			return
 		}
 		file.runeOffset++
 		file.spacingOffset += currentSpacing
+	}
+	if file.spacingOffset == oldSpacingOffset {
+		return
+	}
+	if isInsert {
+		file.runeOffset++
+		file.spacingOffset++
 	}
 }
