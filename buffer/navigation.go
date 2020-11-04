@@ -63,6 +63,10 @@ func (file *File) calculateOffset(isInsert bool) {
 			currentSpacing = TabSize
 		}
 		if file.spacingOffset+currentSpacing > oldSpacingOffset {
+			if file.runeOffset < 0 {
+				file.runeOffset = 0
+				file.spacingOffset = 0
+			}
 			return
 		}
 		file.runeOffset++
