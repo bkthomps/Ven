@@ -34,18 +34,19 @@ func (file *File) addLine() {
 }
 
 func (file *File) Remove() (xPosition int) {
-	if len(file.Current.Data) > 0 {
-		file.mutated = true
-		if file.runeOffset == len(file.Current.Data)-1 {
-			if file.Current.Data[file.runeOffset] == '\t' {
-				file.spacingOffset -= TabSize
-			} else {
-				file.spacingOffset--
-			}
-			file.runeOffset--
-		}
-		file.Current.RemoveAt(file.runeOffset)
+	if len(file.Current.Data) == 0 {
+		return file.spacingOffset
 	}
+	file.mutated = true
+	if file.runeOffset > 0 && file.runeOffset == len(file.Current.Data)-1 {
+		if file.Current.Data[file.runeOffset] == '\t' {
+			file.spacingOffset -= TabSize
+		} else {
+			file.spacingOffset--
+		}
+		file.runeOffset--
+	}
+	file.Current.RemoveAt(file.runeOffset)
 	return file.spacingOffset
 }
 
