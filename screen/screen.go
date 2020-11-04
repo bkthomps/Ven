@@ -27,481 +27,343 @@ var (
 	highlightStyle = terminalStyle.Background(tcell.ColorYellow)
 )
 
-type State struct {
-	screen         tcell.Screen
-	mode           int
-	screenHeight   int
-	screenWidth    int
-	xCursor        int
-	yCursor        int
-	xCommandCursor int
-	command        string
-	oldCommand     rune
-	blankLine      string
-	search         *search
-	buffer         *buffer.File
+type file struct {
+	xCursor int
+	yCursor int
+
+	height int
+	width  int
+
+	buffer *buffer.File
 }
 
-type search struct {
-	xPoints []int
-	yPoints []int
-	length  int
+type command struct {
+	xCursor   int
+	yPosition int
+	current   string
+	old       string
 }
 
-func (state *State) Init(screen tcell.Screen, quit chan struct{}, fileName string) {
-	state.screen = screen
-	state.mode = normalMode
-	state.buffer = &buffer.File{}
-	arr := state.buffer.Init(fileName)
-	if e := state.screen.Init(); e != nil {
-		log.Fatal(e)
+type Screen struct {
+	tCell     tcell.Screen
+	mode      int
+	firstLine *buffer.Line
+
+	height int
+	width  int
+
+	blankLine string
+
+	file    *file
+	command *command
+}
+
+func (screen *Screen) Init(tCellScreen tcell.Screen, quit chan struct{}, fileName string) {
+	screen.tCell = tCellScreen
+	screen.mode = normalMode
+	screen.command = &command{}
+	buf := &buffer.File{}
+	buf.Init(fileName)
+	screen.firstLine = buf.First
+	screen.file = &file{}
+	screen.file.buffer = buf
+	if err := screen.tCell.Init(); err != nil {
+		log.Fatal(err)
 	}
-	state.screen.SetStyle(terminalStyle)
-	state.screen.Show()
-	state.updateProperties()
-	state.setInitial(arr)
-	state.setColor(state.xCursor, state.yCursor, cursorStyle)
-	state.displayMode()
-	go state.listener(quit)
+	screen.tCell.SetStyle(terminalStyle)
+	screen.tCell.Show()
+	screen.updateProperties()
+	screen.completeDraw()
+	screen.displayMode()
+	go screen.listener(quit)
 }
 
-func (state *State) updateProperties() (isBigger bool) {
-	oldWidth, oldHeight := state.screenWidth, state.screenHeight
-	x, y := state.screen.Size()
-	state.screenWidth, state.screenHeight = x, y
+func (screen *Screen) updateProperties() {
+	x, y := screen.tCell.Size()
+	screen.height = y
+	screen.width = x
+	screen.file.height = y - 1
+	screen.file.width = x
+	screen.command.yPosition = y - 1
+	screen.blankLine = ""
 	for i := 0; i < x; i++ {
-		state.blankLine += " "
-	}
-	return oldWidth < state.screenWidth || oldHeight < state.screenHeight
-}
-
-func (state *State) setInitial(arr []rune) {
-	x, y := 0, 0
-	for i := 0; i < len(arr) && y < state.screenHeight-1; i++ {
-		cur := arr[i]
-		if cur == '\n' {
-			y++
-			x = 0
-		} else if x < state.screenWidth {
-			state.putRune(cur, x, y)
-			x++
-		}
-	}
-	for i := y; i < state.screenHeight-1; i++ {
-		for j := 2; j < state.screenWidth; j++ {
-			r1, _, _, _ := state.screen.GetContent(j-2, i)
-			r2, _, _, _ := state.screen.GetContent(j-1, i)
-			if r1 == ' ' && r2 == ' ' {
-				break
-			}
-			state.screen.SetContent(j-2, i, ' ', nil, terminalStyle)
-		}
-		state.putRune('~', 0, i)
+		screen.blankLine += " "
 	}
 }
 
-func (state *State) setColor(x, y int, s tcell.Style) {
-	r, _, _, _ := state.screen.GetContent(x, y)
-	state.screen.SetContent(x, y, r, nil, s)
+func (screen *Screen) completeDraw() {
+	y := 0
+	for traverse := screen.firstLine; traverse != nil && y < screen.file.height; y++ {
+		screen.drawLine(y, []rune(screen.blankLine), false)
+		screen.drawLine(y, traverse.Data, true)
+		traverse = traverse.Next
+	}
+	for y < screen.file.height {
+		screen.drawLine(y, []rune(screen.blankLine), false)
+		screen.drawLine(y, []rune{'~'}, true)
+		y++
+	}
 }
 
-func (state *State) displayError(error string) {
-	state.putCommand(state.blankLine)
-	state.putCommand(error)
-	state.mode = commandErrorMode
-	state.displayMode()
+func (screen *Screen) drawColor(x, y int, s tcell.Style) {
+	r, _, _, _ := screen.tCell.GetContent(x, y)
+	screen.tCell.SetContent(x, y, r, nil, s)
 }
 
-func (state *State) displayMode() {
-	switch state.mode {
+func (screen *Screen) displayError(error string) {
+	screen.putCommand(screen.blankLine)
+	screen.putCommand(error)
+	screen.mode = commandErrorMode
+	screen.displayMode()
+}
+
+func (screen *Screen) displayMode() {
+	switch screen.mode {
 	case insertMode:
-		state.setColor(state.xCursor, state.yCursor, cursorStyle)
-		state.putCommand(state.blankLine)
-		state.putCommand(insertMessage)
+		screen.putCommand(screen.blankLine)
+		screen.putCommand(insertMessage)
 	case normalMode:
-		state.setColor(state.xCursor, state.yCursor, cursorStyle)
-		state.putCommand(state.blankLine)
+		screen.putCommand(screen.blankLine)
 	case commandMode:
-		state.putCommand(state.blankLine)
-		state.putCommand(state.command)
-		state.setColor(state.xCommandCursor, state.screenHeight-1, cursorStyle)
+		screen.putCommand(screen.blankLine)
+		screen.putCommand(screen.command.current)
+		screen.drawColor(screen.command.xCursor, screen.command.yPosition, cursorStyle)
 	case commandErrorMode:
-		state.setColor(state.xCommandCursor, state.screenHeight-1, terminalStyle)
+		screen.drawColor(screen.command.xCursor, screen.command.yPosition, terminalStyle)
 	}
-	state.screen.Sync()
+	screen.tCell.Sync()
 }
 
-func (state *State) putCommand(str string) {
-	puts(state.screen, terminalStyle, 0, state.screenHeight-1, str)
+func (screen *Screen) putCommand(str string) {
+	screen.drawLine(screen.command.yPosition, []rune(str), true)
 }
 
-func (state *State) listener(quit chan struct{}) {
+func (screen *Screen) listener(quit chan struct{}) {
 	for {
-		ev := state.screen.PollEvent()
+		ev := screen.tCell.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
-			switch state.mode {
+			switch screen.mode {
 			case insertMode:
-				state.executeInsertMode(ev)
+				screen.executeInsertMode(ev)
 			case normalMode:
-				state.executeNormalMode(ev)
+				screen.executeNormalMode(ev)
 			case commandMode:
-				state.executeCommandMode(ev, quit)
+				screen.executeCommandMode(ev, quit)
 			case commandErrorMode:
-				state.mode = commandMode
+				screen.mode = commandMode
 			}
-			state.displayMode()
+			screen.displayMode()
 		case *tcell.EventResize:
-			isBigger := state.updateProperties()
-			for state.xCursor >= state.screenWidth {
-				state.actionLeft()
-			}
-			for state.yCursor >= state.screenHeight-1 {
-				state.shiftUp(-1, state.screenHeight-1)
-				state.yCursor--
-			}
-			if isBigger {
-				arr := state.buffer.Redraw(state.yCursor, state.screenHeight)
-				state.setInitial(arr)
-			}
-			state.displayMode()
+			screen.updateProperties()
+			screen.completeDraw()
+			screen.displayMode()
 		}
 	}
 }
 
-func (state *State) executeInsertMode(ev *tcell.EventKey) {
+func (screen *Screen) executeInsertMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		state.setColor(state.xCursor, state.yCursor, terminalStyle)
-		state.mode = normalMode
-		possible := state.buffer.Left()
-		if possible {
-			state.xCursor--
-		}
+		screen.mode = normalMode
+		screen.file.xCursor = screen.file.buffer.Left()
+		screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 	default:
-		state.bufferAction(ev)
+		screen.bufferAction(ev)
 	}
 }
 
-func (state *State) executeNormalMode(ev *tcell.EventKey) {
+func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
-		state.bufferAction(ev)
+		screen.bufferAction(ev)
 	default:
 		switch ev.Rune() {
 		case 'i':
-			state.mode = insertMode
+			screen.command.old = ""
+			screen.mode = insertMode
 		case ':', '/':
-			state.setColor(state.xCursor, state.yCursor, terminalStyle)
-			state.mode = commandMode
-			state.command = string(ev.Rune())
-			state.xCommandCursor = len(state.command)
+			screen.command.old = ""
+			screen.mode = commandMode
+			screen.command.current = string(ev.Rune())
+			screen.command.xCursor = len(screen.command.current)
 		case 'x':
-			isPossible, xBack, requiredUpdates := state.buffer.RemoveCurrent()
-			if isPossible {
-				state.shiftLeft(requiredUpdates)
-				if xBack {
-					state.actionLeft()
-				}
-			}
+			screen.command.old = ""
+			screen.file.xCursor = screen.file.buffer.Remove()
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 		case 'X':
-			if state.xCursor != 0 {
-				state.actionLeft()
-				isPossible, _, requiredUpdates := state.buffer.RemoveCurrent()
-				if isPossible {
-					state.shiftLeft(requiredUpdates)
-				}
-			}
+			screen.command.old = ""
+			screen.file.xCursor = screen.file.buffer.RemoveBefore()
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 		case 'd':
-			if state.oldCommand == 'd' {
-				state.xCursor = 0
-				state.shiftUp(state.yCursor-1, state.screenHeight-2)
-				yBack, isEmpty := state.buffer.RemoveLine()
-				if yBack {
-					state.actionUp()
+			if screen.command.old == "d" {
+				x, wasFirst, wasLast := screen.file.buffer.RemoveLine(screen.mode == insertMode)
+				screen.file.xCursor = x
+				if wasFirst {
+					screen.firstLine = screen.firstLine.Next
+				} else if wasLast {
+					screen.file.yCursor--
 				}
-				if isEmpty {
-					state.screen.SetContent(0, 0, ' ', nil, terminalStyle)
-				}
-				state.oldCommand = '_'
+				screen.completeDraw()
+				screen.command.old = ""
 			} else {
-				state.oldCommand = ev.Rune()
+				screen.command.old = "d"
 			}
 		case 'D':
-			requiredUpdates := state.buffer.RemoveRestOfLine()
-			for i := state.xCursor; i <= state.xCursor+requiredUpdates; i++ {
-				state.screen.SetContent(i, state.yCursor, ' ', nil, terminalStyle)
-			}
-			if state.xCursor > 0 {
-				state.actionLeft()
-			}
+			screen.command.old = ""
+			screen.file.xCursor = screen.file.buffer.RemoveRestOfLine(screen.mode == insertMode)
+			screen.drawLine(screen.file.yCursor, []rune(screen.blankLine), false)
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 		}
 	}
 }
 
-func (state *State) executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
+func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		state.removeHighlighting()
-		state.mode = normalMode
+		screen.mode = normalMode
 	case tcell.KeyEnter:
-		state.executeCommand(quit)
+		screen.executeCommand(quit)
 	case tcell.KeyDEL:
-		if state.xCommandCursor <= 1 && len(state.command) > 1 {
+		if screen.command.xCursor <= 1 && len(screen.command.current) > 1 {
 			break
 		}
-		runeCopy := []rune(state.command)
-		copy(runeCopy[state.xCommandCursor-1:], runeCopy[state.xCommandCursor:])
+		runeCopy := []rune(screen.command.current)
+		copy(runeCopy[screen.command.xCursor-1:], runeCopy[screen.command.xCursor:])
 		shrinkSize := len(runeCopy) - 1
 		runeCopy = runeCopy[:shrinkSize]
-		state.command = string(runeCopy)
+		screen.command.current = string(runeCopy)
 		if shrinkSize == 0 {
-			state.removeHighlighting()
-			state.mode = normalMode
+			screen.mode = normalMode
 		}
-		state.xCommandCursor--
+		screen.command.xCursor--
 	case tcell.KeyDown, tcell.KeyUp:
 		// Do Nothing
 	case tcell.KeyLeft:
-		if state.xCommandCursor > 1 {
-			state.xCommandCursor--
+		if screen.command.xCursor > 1 {
+			screen.command.xCursor--
 		}
 	case tcell.KeyRight:
-		if state.xCommandCursor < len(state.command) {
-			state.xCommandCursor++
+		if screen.command.xCursor < len(screen.command.current) {
+			screen.command.xCursor++
 		}
 	default:
-		state.command += string(ev.Rune())
-		state.xCommandCursor++
+		screen.command.current += string(ev.Rune())
+		screen.command.xCursor++
 	}
 }
 
-func (state *State) removeHighlighting() {
-	search := state.search
-	if search == nil {
-		return
-	}
-	for i := 0; i < len(search.xPoints); i++ {
-		startX, y := search.xPoints[i], search.yPoints[i]
-		for x := startX; x < search.length+startX; x++ {
-			r, _, _, _ := state.screen.GetContent(x, y)
-			state.screen.SetContent(x, y, r, nil, terminalStyle)
-		}
-	}
-	state.search = nil
-}
-
-func (state *State) bufferAction(ev *tcell.EventKey) {
-	state.setColor(state.xCursor, state.yCursor, terminalStyle)
+func (screen *Screen) bufferAction(ev *tcell.EventKey) {
+	screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, false)
 	switch ev.Key() {
 	case tcell.KeyDown:
-		state.actionDown()
+		screen.actionDown()
 	case tcell.KeyUp:
-		state.actionUp()
+		screen.actionUp()
 	case tcell.KeyLeft:
-		state.actionLeft()
+		screen.actionLeft()
 	case tcell.KeyRight:
-		state.actionRight()
+		screen.actionRight()
 	case tcell.KeyDEL:
-		state.actionDelete()
+		screen.actionDelete()
 	case tcell.KeyEnter:
-		state.actionEnter()
+		screen.actionKeyPress('\n')
 	default:
-		state.actionKeyPress(ev)
+		screen.actionKeyPress(ev.Rune())
 	}
-	state.setColor(state.xCursor, state.yCursor, cursorStyle)
+	screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 }
 
-func (state *State) actionDown() {
-	possible, x := state.buffer.Down(state.xCursor, state.mode == insertMode)
-	if possible {
-		if state.yCursor == state.screenHeight-2 {
-			for y := 0; y < state.screenHeight-2; y++ {
-				for x := 0; x < state.screenWidth; x++ {
-					r, _, _, _ := state.screen.GetContent(x, y+1)
-					state.screen.SetContent(x, y, r, nil, terminalStyle)
-				}
-			}
-			state.putString(state.blankLine, 0, state.screenHeight-2)
-			state.putString(state.buffer.GetLine(), 0, state.screenHeight-2)
-		} else {
-			state.yCursor++
-		}
-		state.xCursor = x
-	}
-}
-
-func (state *State) actionUp() {
-	possible, x := state.buffer.Up(state.xCursor, state.mode == insertMode)
-	if possible {
-		if state.yCursor == 0 {
-			for y := state.screenHeight - 2; y > 0; y-- {
-				for x := 0; x < state.screenWidth; x++ {
-					r, _, _, _ := state.screen.GetContent(x, y-1)
-					state.screen.SetContent(x, y, r, nil, terminalStyle)
-				}
-			}
-			state.putString(state.blankLine, 0, 0)
-			state.putString(state.buffer.GetLine(), 0, 0)
-		} else {
-			state.yCursor--
-		}
-		state.xCursor = x
-	}
-}
-
-func (state *State) actionLeft() {
-	possible := state.buffer.Left()
-	if possible {
-		state.xCursor--
-	}
-}
-
-func (state *State) actionRight() {
-	possible := state.buffer.Right(state.mode == insertMode)
-	if possible {
-		state.xCursor++
-	}
-}
-
-func (state *State) actionDelete() {
-	possible, newX, requiredUpdates := state.buffer.Remove()
-	if possible {
-		if state.xCursor != 0 {
-			state.xCursor--
-			state.shiftLeft(requiredUpdates)
-		} else {
-			state.xCursor = newX
-			state.yCursor--
-			for x := 0; x < requiredUpdates; x++ {
-				r, _, _, _ := state.screen.GetContent(x, state.yCursor+1)
-				state.screen.SetContent(x+newX, state.yCursor, r, nil, terminalStyle)
-			}
-			state.shiftUp(state.yCursor, state.screenHeight-2)
-		}
-	}
-}
-
-func (state *State) shiftLeft(requiredUpdates int) {
-	for i := state.xCursor; i <= state.xCursor+requiredUpdates; i++ {
-		r, _, _, _ := state.screen.GetContent(i+1, state.yCursor)
-		state.screen.SetContent(i, state.yCursor, r, nil, terminalStyle)
-	}
-}
-
-func (state *State) shiftUp(ontoY, bottomY int) {
-	for y := ontoY + 1; y < bottomY; y++ {
-		for x := 0; x < state.screenWidth; x++ {
-			r, _, _, _ := state.screen.GetContent(x, y+1)
-			state.screen.SetContent(x, y, r, nil, terminalStyle)
-		}
-	}
-	state.putString(state.blankLine, 0, bottomY)
-	state.putString(state.buffer.GetBottom(ontoY, bottomY), 0, bottomY)
-}
-
-func (state *State) actionEnter() {
-	state.buffer.Add('\n')
-	for y := state.screenHeight - 2; y > state.yCursor+1; y-- {
-		for x := 0; x < state.screenWidth; x++ {
-			r, _, _, _ := state.screen.GetContent(x, y-1)
-			state.screen.SetContent(x, y, r, nil, terminalStyle)
-		}
-	}
-	for x := 0; x < state.screenWidth; x++ {
-		r, _, _, _ := state.screen.GetContent(x+state.xCursor, state.yCursor)
-		state.screen.SetContent(x, state.yCursor+1, r, nil, terminalStyle)
-		state.screen.SetContent(x+state.xCursor, state.yCursor, ' ', nil, terminalStyle)
-	}
-	state.xCursor = 0
-	if state.yCursor != state.screenHeight-2 {
-		state.yCursor++
-	} else {
-		for y := 0; y < state.screenHeight-2; y++ {
-			for x := 0; x < state.screenWidth; x++ {
-				r, _, _, _ := state.screen.GetContent(x, y+1)
-				state.screen.SetContent(x, y, r, nil, terminalStyle)
-			}
-		}
-		state.putString(state.blankLine, 0, state.screenHeight-2)
-		state.putString(state.buffer.GetLine(), 0, state.screenHeight-2)
-	}
-}
-
-func (state *State) actionKeyPress(ev *tcell.EventKey) {
-	x, y := state.xCursor, state.yCursor
-	requiredUpdates := state.buffer.Add(ev.Rune())
-	state.xCursor++
-	state.shiftRight(requiredUpdates)
-	state.putRune(ev.Rune(), x, y)
-}
-
-func (state *State) shiftRight(requiredUpdates int) {
-	for i := state.xCursor + requiredUpdates; i >= state.xCursor; i-- {
-		r, _, _, _ := state.screen.GetContent(i-1, state.yCursor)
-		state.screen.SetContent(i, state.yCursor, r, nil, terminalStyle)
-	}
-}
-
-func (state *State) executeCommand(quit chan struct{}) {
-	if len(state.command) > 1 && state.command[0] == '/' {
-		state.removeHighlighting()
-		searchText := state.command[1:]
-		state.highlight(searchText)
+func (screen *Screen) actionDown() {
+	possible, x := screen.file.buffer.Down(screen.mode == insertMode)
+	if !possible {
 		return
 	}
-	switch state.command {
+	screen.file.xCursor = x
+	if screen.file.yCursor == screen.file.height-1 {
+		screen.firstLine = screen.firstLine.Next
+		screen.completeDraw()
+	} else {
+		screen.file.yCursor++
+	}
+}
+
+func (screen *Screen) actionUp() {
+	possible, x := screen.file.buffer.Up(screen.mode == insertMode)
+	if !possible {
+		return
+	}
+	screen.file.xCursor = x
+	if screen.file.yCursor == 0 {
+		screen.firstLine = screen.firstLine.Prev
+		screen.completeDraw()
+	} else {
+		screen.file.yCursor--
+	}
+}
+
+func (screen *Screen) actionLeft() {
+	screen.file.xCursor = screen.file.buffer.Left()
+}
+
+func (screen *Screen) actionRight() {
+	screen.file.xCursor = screen.file.buffer.Right(screen.mode == insertMode)
+}
+
+func (screen *Screen) actionDelete() {
+	x, deletedLine := screen.file.buffer.Backspace()
+	screen.file.xCursor = x
+	if deletedLine {
+		screen.file.yCursor--
+		screen.completeDraw()
+	}
+}
+
+func (screen *Screen) actionKeyPress(rune rune) {
+	x, addedLine := screen.file.buffer.Add(rune)
+	screen.file.xCursor = x
+	if addedLine {
+		if screen.file.yCursor == screen.file.height-1 {
+			screen.firstLine = screen.firstLine.Next
+		} else {
+			screen.file.yCursor++
+		}
+		screen.completeDraw()
+	}
+}
+
+func (screen *Screen) executeCommand(quit chan struct{}) {
+	if len(screen.command.current) > 1 && screen.command.current[0] == '/' {
+		// TODO: searching
+		return
+	}
+	switch screen.command.current {
 	case ":q":
-		if state.buffer.CanSafeQuit() {
+		if screen.file.buffer.CanSafeQuit() {
 			close(quit)
 		} else {
-			state.displayError(modifiedFile)
+			screen.displayError(modifiedFile)
 		}
 	case ":q!":
 		close(quit)
 	case ":w":
-		state.write()
+		screen.write()
 	case ":wq":
-		saved := state.write()
+		saved := screen.write()
 		if saved {
 			close(quit)
 		}
 	default:
-		state.displayError(errorCommand)
+		screen.displayError(errorCommand)
 	}
 }
 
-func (state *State) highlight(searchText string) {
-	xPoints, yPoints := state.buffer.Search(searchText, state.yCursor, state.screenHeight)
-	length := len(searchText)
-	for i := 0; i < len(xPoints); i++ {
-		startX, y := xPoints[i], yPoints[i]
-		for x := startX; x < length+startX; x++ {
-			r, _, _, _ := state.screen.GetContent(x, y)
-			state.screen.SetContent(x, y, r, nil, highlightStyle)
-		}
-	}
-	state.search = &search{
-		xPoints: xPoints,
-		yPoints: yPoints,
-		length:  length,
-	}
-}
-
-func (state *State) write() (saved bool) {
-	err := state.buffer.Save()
+func (screen *Screen) write() (saved bool) {
+	err := screen.file.buffer.Save()
 	if err != nil {
-		state.displayError(errorSave)
+		screen.displayError(errorSave)
 		return false
 	}
-	state.mode = normalMode
+	screen.mode = normalMode
 	return true
-}
-
-func (state *State) putRune(r rune, x, y int) {
-	puts(state.screen, terminalStyle, x, y, string(r))
-}
-
-func (state *State) putString(s string, x, y int) {
-	puts(state.screen, terminalStyle, x, y, s)
 }

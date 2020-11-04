@@ -9,7 +9,7 @@ import (
 	"github.com/gdamore/tcell/encoding"
 )
 
-const version = "0.3.0"
+const version = "0.3.1"
 
 func main() {
 	if len(os.Args) != 2 {
@@ -23,14 +23,14 @@ func main() {
 		print("Available at github.com/bkthomps/Ven\n")
 		return
 	}
-	s, err := tcell.NewScreen()
+	tCellScreen, err := tcell.NewScreen()
 	if err != nil {
 		log.Fatal(err)
 	}
 	encoding.Register()
 	quit := make(chan struct{})
-	state := &screen.State{}
-	state.Init(s, quit, userArg)
+	s := &screen.Screen{}
+	s.Init(tCellScreen, quit, userArg)
 	<-quit
-	s.Fini()
+	tCellScreen.Fini()
 }
