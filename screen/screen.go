@@ -45,9 +45,8 @@ type command struct {
 }
 
 type Screen struct {
-	tCell     tcell.Screen
-	mode      int
-	firstLine *buffer.Line
+	tCell tcell.Screen
+	mode  int
 
 	height int
 	width  int
@@ -64,7 +63,6 @@ func (screen *Screen) Init(tCellScreen tcell.Screen, quit chan struct{}, fileNam
 	screen.command = &command{}
 	buf := &buffer.File{}
 	buf.Init(fileName)
-	screen.firstLine = buf.First
 	screen.file = &file{}
 	screen.file.buffer = buf
 	if err := screen.tCell.Init(); err != nil {
@@ -94,7 +92,7 @@ func (screen *Screen) updateProperties() {
 
 func (screen *Screen) completeDraw() {
 	y := 0
-	for traverse := screen.firstLine; traverse != nil && y < screen.file.height; y++ {
+	for traverse := screen.file.buffer.First; traverse != nil && y < screen.file.height; y++ {
 		screen.drawLine(y, []rune(screen.blankLine), false)
 		screen.drawLine(y, traverse.Data, true)
 		traverse = traverse.Next
@@ -179,7 +177,8 @@ func (screen *Screen) executeInsertMode(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
 		screen.mode = normalMode
-		screen.file.xCursor -= screen.file.buffer.Left()
+		screen.file.xCursor = screen.file.buffer.Left()
+		screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 	default:
 		screen.bufferAction(ev)
 	}
@@ -192,19 +191,39 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 	default:
 		switch ev.Rune() {
 		case 'i':
+			screen.command.old = ""
 			screen.mode = insertMode
 		case ':', '/':
+			screen.command.old = ""
 			screen.mode = commandMode
 			screen.command.current = string(ev.Rune())
 			screen.command.xCursor = len(screen.command.current)
 		case 'x':
-			// TODO
+			screen.command.old = ""
+			screen.file.xCursor = screen.file.buffer.Remove()
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 		case 'X':
-			// TODO
+			screen.command.old = ""
+			screen.file.xCursor = screen.file.buffer.RemoveBefore()
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 		case 'd':
-			// TODO
+			// TODO: get to work
+			if screen.command.old == "d" {
+				x, lineUp := screen.file.buffer.RemoveLine(screen.mode == insertMode)
+				screen.file.xCursor = x
+				if lineUp {
+					screen.file.yCursor--
+				}
+				screen.completeDraw()
+				screen.command.old = ""
+			} else {
+				screen.command.old = "d"
+			}
 		case 'D':
-			// TODO
+			screen.command.old = ""
+			screen.file.xCursor = screen.file.buffer.RemoveRestOfLine(screen.mode == insertMode)
+			screen.drawLine(screen.file.yCursor, []rune(screen.blankLine), false)
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 		}
 	}
 }
@@ -212,7 +231,6 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
-		// TODO: remove highlighting
 		screen.mode = normalMode
 	case tcell.KeyEnter:
 		screen.executeCommand(quit)
@@ -304,7 +322,7 @@ func (screen *Screen) actionRight() {
 }
 
 func (screen *Screen) actionDelete() {
-	x, deletedLine := screen.file.buffer.RemoveBefore()
+	x, deletedLine := screen.file.buffer.Backspace()
 	screen.file.xCursor = x
 	if deletedLine {
 		screen.file.yCursor--
