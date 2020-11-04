@@ -89,7 +89,6 @@ func (screen *Screen) updateProperties() {
 	for i := 0; i < x; i++ {
 		screen.blankLine += " "
 	}
-	// TODO: update x or y cursor if now out of screen
 }
 
 func (screen *Screen) completeDraw() {
@@ -156,21 +155,9 @@ func (screen *Screen) listener(quit chan struct{}) {
 			}
 			screen.displayMode()
 		case *tcell.EventResize:
-			/* TODO
-			isBigger := state.updateProperties()
-			for state.xCursor >= state.screenWidth {
-				state.actionLeft()
-			}
-			for state.yCursor >= state.screenHeight-1 {
-				state.shiftUp(-1, state.screenHeight-1)
-				state.yCursor--
-			}
-			if isBigger {
-				arr := state.buffer.Redraw(state.yCursor, state.screenHeight)
-				state.setInitial(arr)
-			}
-			state.displayMode()
-			*/
+			screen.updateProperties()
+			screen.completeDraw()
+			screen.displayMode()
 		}
 	}
 }
