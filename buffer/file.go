@@ -24,20 +24,20 @@ type File struct {
 
 func (file *File) Init(fileName string) {
 	file.fileName = fileName
-	file.mutated = false
 	line := &Line{}
 	line.Init(nil, nil)
 	file.First = line
 	file.last = line
 	file.Current = line
 	file.lines = 1
-	file.runeOffset = 0
-	file.spacingOffset = 0
 	arr := readFile(fileName)
-	for _, character := range arr {
+	for _, character := range arr[:len(arr)-1] {
 		file.Add(character)
 	}
 	file.Current = file.First
+	file.runeOffset = 0
+	file.spacingOffset = 0
+	file.mutated = false
 }
 
 func readFile(fileName string) (arr []rune) {

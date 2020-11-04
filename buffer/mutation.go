@@ -29,6 +29,8 @@ func (file *File) addLine() {
 	file.Current.Next = line
 	file.Current = line
 	file.lines++
+	line.Data = line.Prev.Data[file.runeOffset:]
+	line.Prev.Data = line.Prev.Data[:file.runeOffset]
 }
 
 func (file *File) Remove() (xPosition int) {
@@ -50,7 +52,21 @@ func (file *File) Remove() (xPosition int) {
 func (file *File) RemoveBefore() (xPosition int, deletedLine bool) {
 	file.mutated = true
 	if file.runeOffset == 0 {
-		// TODO: merge with precedent line
+		if file.Current == file.First {
+			return file.spacingOffset, false
+		}
+		file.spacingOffset = 1_000_000_000
+		current := file.Current
+		file.Current = current.Prev
+		file.calculateOffset(true)
+		current.Prev.Data = append(current.Prev.Data, current.Data...)
+		current.Prev.Next = current.Next
+		if current.Next != nil {
+			current.Next.Prev = current.Prev
+		} else {
+			file.last = file.Current
+		}
+		file.lines--
 		return file.spacingOffset, true
 	}
 	file.runeOffset--

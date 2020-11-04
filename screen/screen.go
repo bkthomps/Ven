@@ -45,8 +45,9 @@ type command struct {
 }
 
 type Screen struct {
-	tCell tcell.Screen
-	mode  int
+	tCell     tcell.Screen
+	mode      int
+	firstLine *buffer.Line
 
 	height int
 	width  int
@@ -63,6 +64,7 @@ func (screen *Screen) Init(tCellScreen tcell.Screen, quit chan struct{}, fileNam
 	screen.command = &command{}
 	buf := &buffer.File{}
 	buf.Init(fileName)
+	screen.firstLine = buf.First
 	screen.file = &file{}
 	screen.file.buffer = buf
 	if err := screen.tCell.Init(); err != nil {
@@ -92,11 +94,13 @@ func (screen *Screen) updateProperties() {
 
 func (screen *Screen) completeDraw() {
 	y := 0
-	for traverse := screen.file.buffer.First; traverse != nil && y < screen.file.height; y++ {
+	for traverse := screen.firstLine; traverse != nil && y < screen.file.height; y++ {
+		screen.drawLine(y, []rune(screen.blankLine), false)
 		screen.drawLine(y, traverse.Data, true)
 		traverse = traverse.Next
 	}
 	for y < screen.file.height {
+		screen.drawLine(y, []rune(screen.blankLine), false)
 		screen.drawLine(y, []rune{'~'}, true)
 		y++
 	}
@@ -256,9 +260,9 @@ func (screen *Screen) bufferAction(ev *tcell.EventKey) {
 	case tcell.KeyDEL:
 		screen.actionDelete()
 	case tcell.KeyEnter:
-		screen.actionEnter()
+		screen.actionKeyPress('\n')
 	default:
-		screen.actionKeyPress(ev)
+		screen.actionKeyPress(ev.Rune())
 	}
 	screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 }
@@ -303,26 +307,18 @@ func (screen *Screen) actionDelete() {
 	x, deletedLine := screen.file.buffer.RemoveBefore()
 	screen.file.xCursor = x
 	if deletedLine {
-		// TODO
+		screen.file.yCursor--
+		screen.completeDraw()
 	}
 }
 
-// TODO: can merge with next function
-func (screen *Screen) actionEnter() {
-	x, addedLine := screen.file.buffer.Add('\n')
+func (screen *Screen) actionKeyPress(rune rune) {
+	x, addedLine := screen.file.buffer.Add(rune)
 	screen.file.xCursor = x
 	if addedLine {
 		// TODO: what if last line?
 		screen.file.yCursor++
-	}
-}
-
-func (screen *Screen) actionKeyPress(ev *tcell.EventKey) {
-	x, addedLine := screen.file.buffer.Add(ev.Rune())
-	screen.file.xCursor = x
-	if addedLine {
-		// TODO: what if last line?
-		screen.file.yCursor++
+		screen.completeDraw()
 	}
 }
 
