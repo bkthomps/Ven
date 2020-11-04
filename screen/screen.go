@@ -45,8 +45,9 @@ type command struct {
 }
 
 type Screen struct {
-	tCell tcell.Screen
-	mode  int
+	tCell     tcell.Screen
+	mode      int
+	firstLine *buffer.Line
 
 	height int
 	width  int
@@ -63,6 +64,7 @@ func (screen *Screen) Init(tCellScreen tcell.Screen, quit chan struct{}, fileNam
 	screen.command = &command{}
 	buf := &buffer.File{}
 	buf.Init(fileName)
+	screen.firstLine = buf.First
 	screen.file = &file{}
 	screen.file.buffer = buf
 	if err := screen.tCell.Init(); err != nil {
@@ -92,7 +94,7 @@ func (screen *Screen) updateProperties() {
 
 func (screen *Screen) completeDraw() {
 	y := 0
-	for traverse := screen.file.buffer.First; traverse != nil && y < screen.file.height; y++ {
+	for traverse := screen.firstLine; traverse != nil && y < screen.file.height; y++ {
 		screen.drawLine(y, []rune(screen.blankLine), false)
 		screen.drawLine(y, traverse.Data, true)
 		traverse = traverse.Next
@@ -207,11 +209,12 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			screen.file.xCursor = screen.file.buffer.RemoveBefore()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true)
 		case 'd':
-			// TODO: get to work
 			if screen.command.old == "d" {
-				x, lineUp := screen.file.buffer.RemoveLine(screen.mode == insertMode)
+				x, wasFirst, wasLast := screen.file.buffer.RemoveLine(screen.mode == insertMode)
 				screen.file.xCursor = x
-				if lineUp {
+				if wasFirst {
+					screen.firstLine = screen.firstLine.Next
+				} else if wasLast {
 					screen.file.yCursor--
 				}
 				screen.completeDraw()
@@ -244,7 +247,6 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 		runeCopy = runeCopy[:shrinkSize]
 		screen.command.current = string(runeCopy)
 		if shrinkSize == 0 {
-			// TODO: remove highlighting
 			screen.mode = normalMode
 		}
 		screen.command.xCursor--
@@ -290,13 +292,13 @@ func (screen *Screen) actionDown() {
 	if !possible {
 		return
 	}
+	screen.file.xCursor = x
 	if screen.file.yCursor == screen.file.height-1 {
-		// TODO: implement this
-		return
+		screen.firstLine = screen.firstLine.Next
+		screen.completeDraw()
 	} else {
 		screen.file.yCursor++
 	}
-	screen.file.xCursor = x
 }
 
 func (screen *Screen) actionUp() {
@@ -304,13 +306,13 @@ func (screen *Screen) actionUp() {
 	if !possible {
 		return
 	}
+	screen.file.xCursor = x
 	if screen.file.yCursor == 0 {
-		// TODO: implement this
-		return
+		screen.firstLine = screen.firstLine.Prev
+		screen.completeDraw()
 	} else {
 		screen.file.yCursor--
 	}
-	screen.file.xCursor = x
 }
 
 func (screen *Screen) actionLeft() {
@@ -334,8 +336,11 @@ func (screen *Screen) actionKeyPress(rune rune) {
 	x, addedLine := screen.file.buffer.Add(rune)
 	screen.file.xCursor = x
 	if addedLine {
-		// TODO: what if last line?
-		screen.file.yCursor++
+		if screen.file.yCursor == screen.file.height-1 {
+			screen.firstLine = screen.firstLine.Next
+		} else {
+			screen.file.yCursor++
+		}
 		screen.completeDraw()
 	}
 }
