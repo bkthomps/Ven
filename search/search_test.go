@@ -70,3 +70,101 @@ func TestSingleLineMultipleMatches(t *testing.T) {
 		}
 	}
 }
+
+func TestMultipleLinesMultipleMatches(t *testing.T) {
+	file := buffer.File{}
+	file.Init("TestMultipleLinesMultipleMatches.txt")
+	repetitions := 3
+	for i := 0; i < repetitions; i++ {
+		for c := 'a'; c <= 'z'; c++ {
+			file.Add(c)
+		}
+		file.Add('\n')
+	}
+	matches := AllMatches("cde", file.First)
+	if len(matches) != repetitions {
+		t.Error("bad match count")
+	}
+	line := file.First
+	for _, match := range matches {
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		if match.StartOffset != 2 {
+			t.Error("bad match offset")
+		}
+		if match.Length != 3 {
+			t.Error("bad match length")
+		}
+		line = line.Next
+	}
+}
+
+func TestRegex(t *testing.T) {
+	line := &buffer.Line{}
+	i := 0
+	for c := 'a'; c <= 'z'; c++ {
+		line.AddAt(i, c)
+		i++
+	}
+	matches := AllMatches("c.e", line)
+	if len(matches) != 1 {
+		t.Error("bad match count")
+	}
+	for _, match := range matches {
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		if match.StartOffset != 2 {
+			t.Error("bad match offset")
+		}
+		if match.Length != 3 {
+			t.Error("bad match length")
+		}
+	}
+	matches = AllMatches("a.*z", line)
+	if len(matches) != 1 {
+		t.Error("bad match count")
+	}
+	for _, match := range matches {
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		if match.StartOffset != 0 {
+			t.Error("bad match offset")
+		}
+		if match.Length != 26 {
+			t.Error("bad match length")
+		}
+	}
+	matches = AllMatches("(c.e)|(f.h)", line)
+	if len(matches) != 2 {
+		t.Error("bad match count")
+	}
+	for i, match := range matches {
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		if match.StartOffset != 2+i*3 {
+			t.Error("bad match offset")
+		}
+		if match.Length != 3 {
+			t.Error("bad match length")
+		}
+	}
+	matches = AllMatches("[a-d]", line)
+	if len(matches) != 4 {
+		t.Error("bad match count")
+	}
+	for i, match := range matches {
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		if match.StartOffset != i {
+			t.Error("bad match offset")
+		}
+		if match.Length != 1 {
+			t.Error("bad match length")
+		}
+	}
+}

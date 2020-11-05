@@ -1,8 +1,9 @@
 package search
 
 import (
-	"github.com/bkthomps/Ven/buffer"
 	"regexp"
+
+	"github.com/bkthomps/Ven/buffer"
 )
 
 type Match struct {
