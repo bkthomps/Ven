@@ -232,6 +232,7 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 	case tcell.KeyEnter:
 		screen.executeCommand(quit)
 	case tcell.KeyDEL:
+		screen.completeDraw(nil)
 		if screen.command.xCursor <= 1 && len(screen.command.current) > 1 {
 			break
 		}
@@ -241,7 +242,6 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 		runeCopy = runeCopy[:shrinkSize]
 		screen.command.current = string(runeCopy)
 		if shrinkSize == 0 {
-			screen.completeDraw(nil)
 			screen.mode = normalMode
 		}
 		screen.command.xCursor--
