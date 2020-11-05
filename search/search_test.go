@@ -34,11 +34,13 @@ func TestSingleLineSingleMatch(t *testing.T) {
 		if match.Line != line {
 			t.Error("bad match line")
 		}
-		if match.StartOffset != 2 {
-			t.Error("bad match offset")
-		}
-		if match.Length != 3 {
-			t.Error("bad match length")
+		for _, instance := range match.Instances {
+			if instance.StartOffset != 2 {
+				t.Error("bad match offset")
+			}
+			if instance.Length != 3 {
+				t.Error("bad match length")
+			}
 		}
 	}
 }
@@ -54,19 +56,24 @@ func TestSingleLineMultipleMatches(t *testing.T) {
 		}
 	}
 	matches := AllMatches("cde", line)
-	if len(matches) != repetitions {
+	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
 	charset := 26
-	for j, match := range matches {
+	for _, match := range matches {
+		if len(match.Instances) != repetitions {
+			t.Error("bad match count")
+		}
 		if match.Line != line {
 			t.Error("bad match line")
 		}
-		if match.StartOffset != charset*j+2 {
-			t.Error("bad match offset")
-		}
-		if match.Length != 3 {
-			t.Error("bad match length")
+		for i, instance := range match.Instances {
+			if instance.StartOffset != charset*i+2 {
+				t.Error("bad match offset")
+			}
+			if instance.Length != 3 {
+				t.Error("bad match length")
+			}
 		}
 	}
 }
@@ -87,14 +94,19 @@ func TestMultipleLinesMultipleMatches(t *testing.T) {
 	}
 	line := file.First
 	for _, match := range matches {
+		if len(match.Instances) != 1 {
+			t.Error("bad match count")
+		}
 		if match.Line != line {
 			t.Error("bad match line")
 		}
-		if match.StartOffset != 2 {
-			t.Error("bad match offset")
-		}
-		if match.Length != 3 {
-			t.Error("bad match length")
+		for _, instance := range match.Instances {
+			if instance.StartOffset != 2 {
+				t.Error("bad match offset")
+			}
+			if instance.Length != 3 {
+				t.Error("bad match length")
+			}
 		}
 		line = line.Next
 	}
@@ -115,11 +127,13 @@ func TestRegex(t *testing.T) {
 		if match.Line != line {
 			t.Error("bad match line")
 		}
-		if match.StartOffset != 2 {
-			t.Error("bad match offset")
-		}
-		if match.Length != 3 {
-			t.Error("bad match length")
+		for _, instance := range match.Instances {
+			if instance.StartOffset != 2 {
+				t.Error("bad match offset")
+			}
+			if instance.Length != 3 {
+				t.Error("bad match length")
+			}
 		}
 	}
 	matches = AllMatches("a.*z", line)
@@ -130,41 +144,53 @@ func TestRegex(t *testing.T) {
 		if match.Line != line {
 			t.Error("bad match line")
 		}
-		if match.StartOffset != 0 {
-			t.Error("bad match offset")
-		}
-		if match.Length != 26 {
-			t.Error("bad match length")
+		for _, instance := range match.Instances {
+			if instance.StartOffset != 0 {
+				t.Error("bad match offset")
+			}
+			if instance.Length != 26 {
+				t.Error("bad match length")
+			}
 		}
 	}
 	matches = AllMatches("(c.e)|(f.h)", line)
-	if len(matches) != 2 {
+	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
-	for i, match := range matches {
+	for _, match := range matches {
+		if len(match.Instances) != 2 {
+			t.Error("bad match count")
+		}
 		if match.Line != line {
 			t.Error("bad match line")
 		}
-		if match.StartOffset != 2+i*3 {
-			t.Error("bad match offset")
-		}
-		if match.Length != 3 {
-			t.Error("bad match length")
+		for i, instance := range match.Instances {
+			if instance.StartOffset != 2+i*3 {
+				t.Error("bad match offset")
+			}
+			if instance.Length != 3 {
+				t.Error("bad match length")
+			}
 		}
 	}
 	matches = AllMatches("[a-d]", line)
-	if len(matches) != 4 {
+	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
-	for i, match := range matches {
+	for _, match := range matches {
+		if len(match.Instances) != 4 {
+			t.Error("bad match count")
+		}
 		if match.Line != line {
 			t.Error("bad match line")
 		}
-		if match.StartOffset != i {
-			t.Error("bad match offset")
-		}
-		if match.Length != 1 {
-			t.Error("bad match length")
+		for i, instance := range match.Instances {
+			if instance.StartOffset != i {
+				t.Error("bad match offset")
+			}
+			if instance.Length != 1 {
+				t.Error("bad match length")
+			}
 		}
 	}
 }
