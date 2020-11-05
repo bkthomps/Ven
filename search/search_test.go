@@ -14,8 +14,8 @@ func TestSingleLineNoMatches(t *testing.T) {
 		i++
 	}
 	pattern := Compile([]rune("zyx"))
-	match := pattern.Search(line)
-	if match != nil {
+	matches := pattern.Search(line)
+	if len(matches) != 0 {
 		t.Error("expected no matches")
 	}
 }
@@ -28,14 +28,41 @@ func TestSingleLineSingleMatch(t *testing.T) {
 		i++
 	}
 	pattern := Compile([]rune("cde"))
-	match := pattern.Search(line)
-	if match == nil {
+	matches := pattern.Search(line)
+	if len(matches) != 1 {
 		t.Error("bad match count")
-	} else {
+	}
+	for _, match := range matches {
 		if match.Line != line {
 			t.Error("bad match line")
 		}
 		if match.StartOffset != 2 {
+			t.Error("bad match offset")
+		}
+	}
+}
+
+func TestSingleLineMultipleMatches(t *testing.T) {
+	line := &buffer.Line{}
+	repetitions := 3
+	i := 0
+	for j := 0; j < repetitions; j++ {
+		for c := 'a'; c <= 'z'; c++ {
+			line.AddAt(i, c)
+			i++
+		}
+	}
+	pattern := Compile([]rune("cde"))
+	matches := pattern.Search(line)
+	if len(matches) != repetitions {
+		t.Error("bad match count")
+	}
+	charset := 26
+	for j, match := range matches {
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		if match.StartOffset != charset*j+2 {
 			t.Error("bad match offset")
 		}
 	}

@@ -1,8 +1,7 @@
+// Package search implements the Backward Nondeterministic Dawg Matching algorithm
 package search
 
 import "github.com/bkthomps/Ven/buffer"
-
-// Backward Nondeterministic Dawg Matching algorithm
 
 type Pattern struct {
 	table  map[rune]uint32
@@ -31,33 +30,37 @@ func Compile(search []rune) (pattern *Pattern) {
 
 // Search starts at the current line, and returns the first match
 // that satisfies the pattern, or nil if there are no matches
-func (pattern *Pattern) Search(start *buffer.Line) *Match {
-	pi := -1
-	p := pi + pattern.length
-	he := len(start.Data)
-	for p < he {
-		skip := p
-		d := pattern.state
-		for d != 0 {
-			d &= pattern.table[start.Data[p]]
-			p--
-			if d == 0 {
-				break
-			}
-			if d&1 != 0 {
-				if p != pi {
-					skip = p
-				} else {
-					return &Match{
-						Line:        start,
-						StartOffset: p + 1,
+func (pattern *Pattern) Search(start *buffer.Line) []Match {
+	matches := make([]Match, 0)
+	for traverse := start; traverse != nil; traverse = traverse.Next {
+		pi := -1
+		p := pi + pattern.length
+		he := len(traverse.Data)
+		for p < he {
+			skip := p
+			d := pattern.state
+			for d != 0 {
+				d &= pattern.table[traverse.Data[p]]
+				p--
+				if d == 0 {
+					break
+				}
+				if d&1 != 0 {
+					if p != pi {
+						skip = p
+					} else {
+						match := Match{
+							Line:        traverse,
+							StartOffset: p + 1,
+						}
+						matches = append(matches, match)
 					}
 				}
+				d >>= 1
 			}
-			d >>= 1
+			pi = skip
+			p = pi + pattern.length
 		}
-		pi = skip
-		p = pi + pattern.length
 	}
-	return nil
+	return matches
 }
