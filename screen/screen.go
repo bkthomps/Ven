@@ -241,6 +241,7 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 		runeCopy = runeCopy[:shrinkSize]
 		screen.command.current = string(runeCopy)
 		if shrinkSize == 0 {
+			screen.completeDraw(nil)
 			screen.mode = normalMode
 		}
 		screen.command.xCursor--
@@ -342,9 +343,14 @@ func (screen *Screen) actionKeyPress(rune rune) {
 func (screen *Screen) executeCommand(quit chan struct{}) {
 	if len(screen.command.current) > 1 && screen.command.current[0] == '/' {
 		pattern := screen.command.current[1:]
-		matches := search.AllMatches(pattern, screen.firstLine, screen.file.height)
-		if len(matches) > 0 {
-			// TODO: scroll to first instance if not on screen
+		matches, firstLineIndex :=
+			search.AllMatches(pattern, screen.file.buffer.Current, screen.file.height)
+		if len(matches) > 0 && firstLineIndex > screen.file.height-screen.file.yCursor {
+			for i := 0; i < firstLineIndex-1; i++ {
+				_, x := screen.file.buffer.Down(screen.mode == insertMode)
+				screen.file.xCursor = x
+				screen.firstLine = screen.firstLine.Next
+			}
 		}
 		screen.completeDraw(&matches)
 		return

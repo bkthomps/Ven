@@ -13,7 +13,7 @@ func TestSingleLineNoMatches(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches := AllMatches("zyx", line, 40)
+	matches, _ := AllMatches("zyx", line, 40)
 	if len(matches) != 0 {
 		t.Error("expected no matches")
 	}
@@ -26,7 +26,7 @@ func TestSingleLineSingleMatch(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches := AllMatches("cde", line, 40)
+	matches, _ := AllMatches("cde", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -55,7 +55,7 @@ func TestSingleLineMultipleMatches(t *testing.T) {
 			i++
 		}
 	}
-	matches := AllMatches("cde", line, 40)
+	matches, _ := AllMatches("cde", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -88,7 +88,7 @@ func TestMultipleLinesMultipleMatches(t *testing.T) {
 		}
 		file.Add('\n')
 	}
-	matches := AllMatches("cde", file.First, 40)
+	matches, _ := AllMatches("cde", file.First, 40)
 	if len(matches) != repetitions {
 		t.Error("bad match count")
 	}
@@ -121,7 +121,7 @@ func TestMultipleLinesMultipleMatchesCropped(t *testing.T) {
 		}
 		file.Add('\n')
 	}
-	matches := AllMatches("cde", file.First, 2)
+	matches, _ := AllMatches("cde", file.First, 2)
 	if len(matches) != 2 {
 		t.Error("bad match count")
 	}
@@ -152,7 +152,7 @@ func TestRegex(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches := AllMatches("c.e", line, 40)
+	matches, _ := AllMatches("c.e", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -169,7 +169,7 @@ func TestRegex(t *testing.T) {
 			}
 		}
 	}
-	matches = AllMatches("a.*z", line, 40)
+	matches, _ = AllMatches("a.*z", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -186,7 +186,7 @@ func TestRegex(t *testing.T) {
 			}
 		}
 	}
-	matches = AllMatches("(c.e)|(f.h)", line, 40)
+	matches, _ = AllMatches("(c.e)|(f.h)", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -206,7 +206,7 @@ func TestRegex(t *testing.T) {
 			}
 		}
 	}
-	matches = AllMatches("[a-d]", line, 40)
+	matches, _ = AllMatches("[a-d]", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
