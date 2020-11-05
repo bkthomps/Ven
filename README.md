@@ -38,7 +38,7 @@ There are three modes: normal mode, command mode, and insertion mode.
 
 ### Command Mode
 * `esc` to go into normal mode
-* `/<search>` to search for a string (currently doesn't support regex)
+* `/<search>` to search for a string (supports regex)
 * `:w` to save the file
 * `:wq` to save and quit
 * `:q` to safely quit
