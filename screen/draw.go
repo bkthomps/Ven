@@ -8,10 +8,11 @@ import (
 func (screen *Screen) drawLine(y int, runes []rune, cursorHighlight bool, matchInstances *[]search.MatchInstance) {
 	matchIndex := 0
 	x := 0
+	spacingOffset := 0
 	for _, r := range runes {
 		style := terminalStyle
 		if matchInstances != nil && matchIndex < len(*matchInstances) {
-			offset := (*matchInstances)[matchIndex].StartOffset
+			offset := (*matchInstances)[matchIndex].StartOffset + spacingOffset
 			length := (*matchInstances)[matchIndex].Length
 			if x >= offset && x < offset+length {
 				style = highlightStyle
@@ -26,8 +27,9 @@ func (screen *Screen) drawLine(y int, runes []rune, cursorHighlight bool, matchI
 		if r == '\t' {
 			screen.tCell.SetContent(x, y, ' ', nil, style)
 			for i := x + 1; i < x+buffer.TabSize; i++ {
-				screen.tCell.SetContent(i, y, ' ', nil, terminalStyle)
+				screen.tCell.SetContent(i, y, ' ', nil, style)
 			}
+			spacingOffset += buffer.TabSize - 1
 			x += buffer.TabSize
 			continue
 		}
