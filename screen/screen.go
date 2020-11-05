@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/bkthomps/Ven/buffer"
+	"github.com/bkthomps/Ven/search"
 	"github.com/gdamore/tcell"
 )
 
@@ -334,7 +335,12 @@ func (screen *Screen) actionKeyPress(rune rune) {
 
 func (screen *Screen) executeCommand(quit chan struct{}) {
 	if len(screen.command.current) > 1 && screen.command.current[0] == '/' {
-		// TODO: searching
+		pattern := screen.command.current[1:]
+		matches := search.AllMatches(pattern, screen.firstLine, screen.file.height)
+		if len(matches) == 0 {
+			return
+		}
+		// TODO
 		return
 	}
 	switch screen.command.current {

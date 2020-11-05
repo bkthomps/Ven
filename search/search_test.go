@@ -13,7 +13,7 @@ func TestSingleLineNoMatches(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches := AllMatches("zyx", line)
+	matches := AllMatches("zyx", line, 40)
 	if len(matches) != 0 {
 		t.Error("expected no matches")
 	}
@@ -26,7 +26,7 @@ func TestSingleLineSingleMatch(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches := AllMatches("cde", line)
+	matches := AllMatches("cde", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -55,7 +55,7 @@ func TestSingleLineMultipleMatches(t *testing.T) {
 			i++
 		}
 	}
-	matches := AllMatches("cde", line)
+	matches := AllMatches("cde", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -88,8 +88,41 @@ func TestMultipleLinesMultipleMatches(t *testing.T) {
 		}
 		file.Add('\n')
 	}
-	matches := AllMatches("cde", file.First)
+	matches := AllMatches("cde", file.First, 40)
 	if len(matches) != repetitions {
+		t.Error("bad match count")
+	}
+	line := file.First
+	for _, match := range matches {
+		if len(match.Instances) != 1 {
+			t.Error("bad match count")
+		}
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		for _, instance := range match.Instances {
+			if instance.StartOffset != 2 {
+				t.Error("bad match offset")
+			}
+			if instance.Length != 3 {
+				t.Error("bad match length")
+			}
+		}
+		line = line.Next
+	}
+}
+
+func TestMultipleLinesMultipleMatchesCropped(t *testing.T) {
+	file := buffer.File{}
+	file.Init("TestMultipleLinesMultipleMatchesCropped.txt")
+	for i := 0; i < 3; i++ {
+		for c := 'a'; c <= 'z'; c++ {
+			file.Add(c)
+		}
+		file.Add('\n')
+	}
+	matches := AllMatches("cde", file.First, 2)
+	if len(matches) != 2 {
 		t.Error("bad match count")
 	}
 	line := file.First
@@ -119,7 +152,7 @@ func TestRegex(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches := AllMatches("c.e", line)
+	matches := AllMatches("c.e", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -136,7 +169,7 @@ func TestRegex(t *testing.T) {
 			}
 		}
 	}
-	matches = AllMatches("a.*z", line)
+	matches = AllMatches("a.*z", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -153,7 +186,7 @@ func TestRegex(t *testing.T) {
 			}
 		}
 	}
-	matches = AllMatches("(c.e)|(f.h)", line)
+	matches = AllMatches("(c.e)|(f.h)", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -173,7 +206,7 @@ func TestRegex(t *testing.T) {
 			}
 		}
 	}
-	matches = AllMatches("[a-d]", line)
+	matches = AllMatches("[a-d]", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}

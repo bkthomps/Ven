@@ -16,13 +16,23 @@ type MatchInstance struct {
 	Length      int
 }
 
-func AllMatches(pattern string, start *buffer.Line) []MatchLine {
+func AllMatches(pattern string, start *buffer.Line, maxLineCount int) []MatchLine {
+	count := 0
 	matches := make([]MatchLine, 0)
 	re := regexp.MustCompile(pattern)
 	for traverse := start; traverse != nil; traverse = traverse.Next {
+		if count > 0 {
+			count++
+			if count > maxLineCount {
+				return matches
+			}
+		}
 		indices := re.FindAllStringIndex(string(traverse.Data), -1)
 		if len(indices) == 0 {
 			continue
+		}
+		if count == 0 {
+			count++
 		}
 		matchInstances := make([]MatchInstance, 0)
 		for _, pair := range indices {
