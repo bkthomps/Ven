@@ -19,7 +19,10 @@ type MatchInstance struct {
 func AllMatches(pattern string, start *buffer.Line, maxLineCount int) []MatchLine {
 	count := 0
 	matches := make([]MatchLine, 0)
-	re := regexp.MustCompile(pattern)
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return matches
+	}
 	for traverse := start; traverse != nil; traverse = traverse.Next {
 		if count > 0 {
 			count++
