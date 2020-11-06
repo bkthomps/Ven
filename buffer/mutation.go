@@ -1,7 +1,5 @@
 package buffer
 
-import "github.com/mattn/go-runewidth"
-
 func (file *File) Add(character rune) (xPosition int, addedLine bool) {
 	file.mutated = true
 	if character == '\n' {
@@ -10,16 +8,7 @@ func (file *File) Add(character rune) (xPosition int, addedLine bool) {
 		file.spacingOffset = 0
 		return file.spacingOffset, true
 	}
-	if character == '\t' {
-		file.spacingOffset += TabSize
-	} else {
-		width := runewidth.RuneWidth(character)
-		if width > 1 {
-			file.spacingOffset += width
-		} else {
-			file.spacingOffset++
-		}
-	}
+	file.spacingOffset += runeWidth(character)
 	file.Current.AddAt(file.runeOffset, character)
 	file.runeOffset++
 	return file.spacingOffset, false
@@ -47,16 +36,7 @@ func (file *File) Remove() (xPosition int) {
 	file.mutated = true
 	if file.runeOffset > 0 && file.runeOffset == len(file.Current.Data)-1 {
 		r := file.Current.Data[file.runeOffset]
-		if r == '\t' {
-			file.spacingOffset -= TabSize
-		} else {
-			width := runewidth.RuneWidth(r)
-			if width > 1 {
-				file.spacingOffset -= width
-			} else {
-				file.spacingOffset--
-			}
-		}
+		file.spacingOffset -= runeWidth(r)
 		file.runeOffset--
 	}
 	file.Current.RemoveAt(file.runeOffset)
@@ -68,16 +48,7 @@ func (file *File) RemoveBefore() (xPosition int) {
 		return file.spacingOffset
 	}
 	r := file.Current.Data[file.runeOffset]
-	if r == '\t' {
-		file.spacingOffset -= TabSize
-	} else {
-		width := runewidth.RuneWidth(r)
-		if width > 1 {
-			file.spacingOffset -= width
-		} else {
-			file.spacingOffset--
-		}
-	}
+	file.spacingOffset -= runeWidth(r)
 	file.runeOffset--
 	file.Current.RemoveAt(file.runeOffset)
 	file.mutated = true
@@ -106,16 +77,7 @@ func (file *File) Backspace() (xPosition int, deletedLine bool) {
 	}
 	file.runeOffset--
 	r := file.Current.Data[file.runeOffset]
-	if r == '\t' {
-		file.spacingOffset -= TabSize
-	} else {
-		width := runewidth.RuneWidth(r)
-		if width > 1 {
-			file.spacingOffset -= width
-		} else {
-			file.spacingOffset--
-		}
-	}
+	file.spacingOffset -= runeWidth(r)
 	file.Current.RemoveAt(file.runeOffset)
 	return file.spacingOffset, false
 }

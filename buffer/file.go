@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	"github.com/mattn/go-runewidth"
 )
 
 const TabSize = 4
@@ -74,4 +76,11 @@ func (file *File) Save() error {
 	_ = osFile.Close()
 	file.mutated = false
 	return nil
+}
+
+func runeWidth(r rune) int {
+	if r == '\t' {
+		return TabSize
+	}
+	return runewidth.RuneWidth(r)
 }

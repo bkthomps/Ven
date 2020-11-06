@@ -38,10 +38,8 @@ func (screen *Screen) drawLine(y int, runes []rune, cursorHighlight bool, matchI
 		width := runewidth.RuneWidth(r)
 		if width > 1 {
 			spacingOffset += width - 1
-			x += width
-		} else {
-			x++
 		}
+		x += width
 	}
 	style := terminalStyle
 	if cursorHighlight && y == screen.file.yCursor && x == screen.file.xCursor {
