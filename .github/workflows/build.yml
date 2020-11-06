@@ -1,0 +1,16 @@
+name: build
+on: [ push ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: go get -t ./...
+      - run: mkdir -p /home/runner/go/src/github.com/bkthomps/Ven
+      - run: cp -r $(pwd) /home/runner/go/src/github.com/bkthomps/Ven
+      - run: go test ./...
+  gofmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: if [[ $(gofmt -l -d -s -e .) ]]; then exit 1; fi
