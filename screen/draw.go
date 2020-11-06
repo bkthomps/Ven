@@ -1,52 +1,59 @@
 package screen
 
 import (
-	"github.com/bkthomps/Ven/buffer"
 	"github.com/bkthomps/Ven/search"
 	"github.com/mattn/go-runewidth"
 )
 
+const zeroWidthJoiner = '\u200d'
+
+var style = terminalStyle
+
 func (screen *Screen) drawLine(y int, runes []rune, cursorHighlight bool, matchInstances *[]search.MatchInstance) {
-	matchIndex := 0
-	x := 0
-	spacingOffset := 0
+	i := 0
+	width := 0
+	deferred := make([]rune, 0)
+	isJoiner := false
 	for _, r := range runes {
-		style := terminalStyle
-		if matchInstances != nil && matchIndex < len(*matchInstances) {
-			offset := (*matchInstances)[matchIndex].StartOffset + spacingOffset
-			length := (*matchInstances)[matchIndex].Length
-			if x >= offset && x < offset+length {
-				style = highlightStyle
+		if r == zeroWidthJoiner {
+			if len(deferred) == 0 {
+				deferred = append(deferred, ' ')
+				width = 1
 			}
-			if x >= offset+length-1 {
-				matchIndex++
-			}
-		}
-		if cursorHighlight && y == screen.file.yCursor && x == screen.file.xCursor {
-			style = cursorStyle
-		}
-		if r == '\t' {
-			screen.tCell.SetContent(x, y, ' ', nil, style)
-			for i := x + 1; i < x+buffer.TabSize; i++ {
-				screen.tCell.SetContent(i, y, ' ', nil, style)
-			}
-			spacingOffset += buffer.TabSize - 1
-			x += buffer.TabSize
+			deferred = append(deferred, r)
+			isJoiner = true
 			continue
 		}
-		screen.tCell.SetContent(x, y, r, nil, style)
-		width := runewidth.RuneWidth(r)
-		if width > 1 {
-			spacingOffset += width - 1
+		if isJoiner {
+			deferred = append(deferred, r)
+			isJoiner = false
+			continue
 		}
-		x += width
+		switch runewidth.RuneWidth(r) {
+		case 0:
+			if len(deferred) == 0 {
+				deferred = append(deferred, ' ')
+				width = 1
+			}
+		case 1:
+			if len(deferred) != 0 {
+				screen.tCell.SetContent(i, y, deferred[0], deferred[1:], style)
+				i += width
+			}
+			deferred = nil
+			width = 1
+		case 2:
+			if len(deferred) != 0 {
+				screen.tCell.SetContent(i, y, deferred[0], deferred[1:], style)
+				i += width
+			}
+			deferred = nil
+			width = 2
+		}
+		deferred = append(deferred, r)
 	}
-	style := terminalStyle
-	if cursorHighlight && y == screen.file.yCursor && x == screen.file.xCursor {
-		style = cursorStyle
-	}
-	screen.tCell.SetContent(x, y, ' ', nil, style)
-	for i := x + 1; i < x+buffer.TabSize; i++ {
-		screen.tCell.SetContent(i, y, ' ', nil, terminalStyle)
+	if len(deferred) != 0 {
+		screen.tCell.SetContent(i, y, deferred[0], deferred[1:], style)
+		i += width
 	}
 }
