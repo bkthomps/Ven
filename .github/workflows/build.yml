@@ -6,6 +6,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: go get github.com/gdamore/tcell
+      - run: ls
       - run: mkdir go/src/github.com/bkthomps
       - run: mkdir go/src/github.com/bkthomps/Ven
       - run: cp ven.go go/src/github.com/bkthomps/Ven/ven.go
