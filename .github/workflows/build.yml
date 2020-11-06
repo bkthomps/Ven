@@ -6,15 +6,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: go get github.com/gdamore/tcell
-      - run: mkdir go
-      - run: mkdir go/src
-      - run: mkdir go/src/github.com
-      - run: mkdir go/src/github.com/bkthomps
-      - run: mkdir go/src/github.com/bkthomps/Ven
-      - run: cp ven.go go/src/github.com/bkthomps/Ven/ven.go
-      - run: cp -r buffer go/src/github.com/bkthomps/Ven/buffer
-      - run: cp -r screen go/src/github.com/bkthomps/Ven/screen
-      - run: cp -r search go/src/github.com/bkthomps/Ven/search
+      - run: mkdir /home/runner/go/src/github.com/bkthomps/Ven
+      - run: echo $GOPATH
+      - run: cp ven.go /home/runner/go/src/github.com/bkthomps/Ven/ven.go
+      - run: cp -r buffer /home/runner/go/src/github.com/bkthomps/Ven/buffer
+      - run: cp -r screen /home/runner/go/src/github.com/bkthomps/Ven/screen
+      - run: cp -r search /home/runner/go/src/github.com/bkthomps/Ven/search
       - run: go test ./...
   gofmt:
     runs-on: ubuntu-latest
