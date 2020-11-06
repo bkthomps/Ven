@@ -1,10 +1,20 @@
 name: build
-on: [push]
+on: [ push ]
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - run: go get github.com/bkthomps/Ven
-    - run: go get github.com/gdamore/tcell
-    - run: go test ./...
+      - uses: actions/checkout@v2
+      - run: go get github.com/gdamore/tcell
+      - run: mkdir go/src/github.com/bkthomps
+      - run: mkdir go/src/github.com/bkthomps/Ven
+      - run: cp ven.go go/src/github.com/bkthomps/Ven/ven.go
+      - run: cp buffer go/src/github.com/bkthomps/Ven/buffer
+      - run: cp screen go/src/github.com/bkthomps/Ven/screen
+      - run: cp search go/src/github.com/bkthomps/Ven/search
+      - run: go test ./...
+  gofmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: if [[ $(gofmt -l -d -s -e .) ]]; then exit 1; fi
