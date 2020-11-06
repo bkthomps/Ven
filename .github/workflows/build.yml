@@ -12,9 +12,9 @@ jobs:
       - run: mkdir go/src/github.com/bkthomps
       - run: mkdir go/src/github.com/bkthomps/Ven
       - run: cp ven.go go/src/github.com/bkthomps/Ven/ven.go
-      - run: cp buffer go/src/github.com/bkthomps/Ven/buffer
-      - run: cp screen go/src/github.com/bkthomps/Ven/screen
-      - run: cp search go/src/github.com/bkthomps/Ven/search
+      - run: cp -r buffer go/src/github.com/bkthomps/Ven/buffer
+      - run: cp -r screen go/src/github.com/bkthomps/Ven/screen
+      - run: cp -r search go/src/github.com/bkthomps/Ven/search
       - run: go test ./...
   gofmt:
     runs-on: ubuntu-latest
