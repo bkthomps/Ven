@@ -1,14 +1,22 @@
 package buffer
 
+import "github.com/mattn/go-runewidth"
+
 func (file *File) Left() (xPosition int) {
 	if file.runeOffset == 0 {
 		return 0
 	}
 	file.runeOffset--
-	if file.Current.Data[file.runeOffset] == '\t' {
+	r := file.Current.Data[file.runeOffset]
+	if r == '\t' {
 		file.spacingOffset -= TabSize
 	} else {
-		file.spacingOffset--
+		width := runewidth.RuneWidth(r)
+		if width > 1 {
+			file.spacingOffset -= width
+		} else {
+			file.spacingOffset--
+		}
 	}
 	return file.spacingOffset
 }
@@ -21,10 +29,16 @@ func (file *File) Right(isInsert bool) (xPosition int) {
 	if file.runeOffset >= len(file.Current.Data)+insertOffset-1 {
 		return file.spacingOffset
 	}
-	if file.Current.Data[file.runeOffset] == '\t' {
+	r := file.Current.Data[file.runeOffset]
+	if r == '\t' {
 		file.spacingOffset += TabSize
 	} else {
-		file.spacingOffset++
+		width := runewidth.RuneWidth(r)
+		if width > 1 {
+			file.spacingOffset += width
+		} else {
+			file.spacingOffset++
+		}
 	}
 	file.runeOffset++
 	return file.spacingOffset
@@ -61,6 +75,11 @@ func (file *File) calculateOffset(isInsert bool) {
 		currentSpacing := 1
 		if r == '\t' {
 			currentSpacing = TabSize
+		} else {
+			width := runewidth.RuneWidth(r)
+			if width > 1 {
+				currentSpacing = width
+			}
 		}
 		if file.spacingOffset+currentSpacing > oldSpacingOffset {
 			if file.runeOffset < 0 {

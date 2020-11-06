@@ -3,6 +3,7 @@ package screen
 import (
 	"github.com/bkthomps/Ven/buffer"
 	"github.com/bkthomps/Ven/search"
+	"github.com/mattn/go-runewidth"
 )
 
 func (screen *Screen) drawLine(y int, runes []rune, cursorHighlight bool, matchInstances *[]search.MatchInstance) {
@@ -34,7 +35,13 @@ func (screen *Screen) drawLine(y int, runes []rune, cursorHighlight bool, matchI
 			continue
 		}
 		screen.tCell.SetContent(x, y, r, nil, style)
-		x++
+		width := runewidth.RuneWidth(r)
+		if width > 1 {
+			spacingOffset += width - 1
+			x += width
+		} else {
+			x++
+		}
 	}
 	style := terminalStyle
 	if cursorHighlight && y == screen.file.yCursor && x == screen.file.xCursor {
