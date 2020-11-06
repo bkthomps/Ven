@@ -6,6 +6,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: go get -t ./...
+      - run: pwd
+      - run: ls
       - run: mkdir /home/runner/go/src/github.com/bkthomps
       - run: mkdir /home/runner/go/src/github.com/bkthomps/Ven
       - run: cp -r $(pwd) /home/runner/go/src/github.com/bkthomps/Ven
