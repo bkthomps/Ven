@@ -52,8 +52,6 @@ type Screen struct {
 	height int
 	width  int
 
-	blankLine string
-
 	file    *file
 	command *command
 }
@@ -85,10 +83,6 @@ func (screen *Screen) updateProperties() {
 	screen.file.height = y - 1
 	screen.file.width = x
 	screen.command.yPosition = y - 1
-	screen.blankLine = ""
-	for i := 0; i < x; i++ {
-		screen.blankLine += " "
-	}
 }
 
 func (screen *Screen) completeDraw(matchLines *[]search.MatchLine) {
@@ -100,19 +94,21 @@ func (screen *Screen) completeDraw(matchLines *[]search.MatchLine) {
 			matchInstances = &(*matchLines)[matchIndex].Instances
 			matchIndex++
 		}
-		screen.drawLine(y, []rune(screen.blankLine), false, nil)
-		screen.drawLine(y, traverse.Data, true, matchInstances)
+		if matchInstances == nil {
+			screen.drawLine(y, traverse.Data)
+		} else {
+			screen.drawLineHighlight(y, traverse.Data, *matchInstances)
+		}
 		traverse = traverse.Next
 	}
 	for y < screen.file.height {
-		screen.drawLine(y, []rune(screen.blankLine), false, nil)
-		screen.drawLine(y, []rune{'~'}, true, nil)
+		screen.drawLine(y, []rune{'~'})
 		y++
 	}
 }
 
 func (screen *Screen) displayError(error string) {
-	screen.putCommand(screen.blankLine)
+	screen.clearCommand()
 	screen.putCommand(error)
 	screen.mode = commandErrorMode
 	screen.displayMode()
@@ -121,12 +117,12 @@ func (screen *Screen) displayError(error string) {
 func (screen *Screen) displayMode() {
 	switch screen.mode {
 	case insertMode:
-		screen.putCommand(screen.blankLine)
+		screen.clearCommand()
 		screen.putCommand(insertMessage)
 	case normalMode:
-		screen.putCommand(screen.blankLine)
+		screen.clearCommand()
 	case commandMode:
-		screen.putCommand(screen.blankLine)
+		screen.clearCommand()
 		screen.putCommand(screen.command.current)
 		screen.tCell.ShowCursor(screen.command.xCursor, screen.command.yPosition)
 	case commandErrorMode:
@@ -135,8 +131,12 @@ func (screen *Screen) displayMode() {
 	screen.tCell.Sync()
 }
 
+func (screen *Screen) clearCommand() {
+	screen.drawBlankLine(screen.command.yPosition)
+}
+
 func (screen *Screen) putCommand(str string) {
-	screen.drawLine(screen.command.yPosition, []rune(str), true, nil)
+	screen.drawLine(screen.command.yPosition, []rune(str))
 }
 
 func (screen *Screen) listener(quit chan struct{}) {
@@ -168,7 +168,7 @@ func (screen *Screen) executeInsertMode(ev *tcell.EventKey) {
 	case tcell.KeyEsc:
 		screen.mode = normalMode
 		screen.file.xCursor = screen.file.buffer.Left()
-		screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true, nil)
+		screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 	default:
 		screen.bufferAction(ev)
 	}
@@ -191,11 +191,11 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 		case 'x':
 			screen.command.old = ""
 			screen.file.xCursor = screen.file.buffer.Remove()
-			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true, nil)
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		case 'X':
 			screen.command.old = ""
 			screen.file.xCursor = screen.file.buffer.RemoveBefore()
-			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true, nil)
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		case 'd':
 			if screen.command.old == "d" {
 				x, wasFirst, wasLast := screen.file.buffer.RemoveLine(screen.mode == insertMode)
@@ -213,8 +213,7 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 		case 'D':
 			screen.command.old = ""
 			screen.file.xCursor = screen.file.buffer.RemoveRestOfLine(screen.mode == insertMode)
-			screen.drawLine(screen.file.yCursor, []rune(screen.blankLine), false, nil)
-			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true, nil)
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		}
 	}
 }
@@ -256,7 +255,6 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 }
 
 func (screen *Screen) bufferAction(ev *tcell.EventKey) {
-	screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, false, nil)
 	switch ev.Key() {
 	case tcell.KeyDown:
 		screen.actionDown()
@@ -273,7 +271,7 @@ func (screen *Screen) bufferAction(ev *tcell.EventKey) {
 	default:
 		screen.actionKeyPress(ev.Rune())
 	}
-	screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data, true, nil)
+	screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 }
 
 func (screen *Screen) actionDown() {
