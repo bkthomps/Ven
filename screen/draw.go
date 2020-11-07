@@ -10,6 +10,9 @@ const zeroWidthJoiner = '\u200d'
 var style = terminalStyle
 
 func (screen *Screen) drawLine(y int, runes []rune, cursorHighlight bool, matchInstances *[]search.MatchInstance) {
+	for i, r := range screen.blankLine {
+		screen.tCell.SetContent(i, y, r, nil, style)
+	}
 	i := 0
 	width := 0
 	deferred := make([]rune, 0)
@@ -55,5 +58,10 @@ func (screen *Screen) drawLine(y int, runes []rune, cursorHighlight bool, matchI
 	if len(deferred) != 0 {
 		screen.tCell.SetContent(i, y, deferred[0], deferred[1:], style)
 		i += width
+	}
+	if cursorHighlight {
+		screen.tCell.ShowCursor(screen.file.xCursor, screen.file.yCursor)
+	} else {
+		screen.tCell.HideCursor()
 	}
 }

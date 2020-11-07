@@ -6,7 +6,7 @@ func (file *File) Left() (xPosition int) {
 	}
 	file.runeOffset--
 	r := file.Current.Data[file.runeOffset]
-	file.spacingOffset -= runeWidth(r)
+	file.spacingOffset = runeWidthDecrease(file.spacingOffset, r)
 	return file.spacingOffset
 }
 
@@ -19,7 +19,7 @@ func (file *File) Right(isInsert bool) (xPosition int) {
 		return file.spacingOffset
 	}
 	r := file.Current.Data[file.runeOffset]
-	file.spacingOffset += runeWidth(r)
+	file.spacingOffset = runeWidthIncrease(file.spacingOffset, r)
 	file.runeOffset++
 	return file.spacingOffset
 }
@@ -52,8 +52,7 @@ func (file *File) calculateOffset(isInsert bool) {
 	file.runeOffset = -1
 	file.spacingOffset = -1
 	for _, r := range file.Current.Data {
-		currentSpacing := runeWidth(r)
-		if file.spacingOffset+currentSpacing > oldSpacingOffset {
+		if runeWidthIncrease(file.spacingOffset, r) > oldSpacingOffset {
 			if file.runeOffset < 0 {
 				file.runeOffset = 0
 				file.spacingOffset = 0
@@ -61,7 +60,7 @@ func (file *File) calculateOffset(isInsert bool) {
 			return
 		}
 		file.runeOffset++
-		file.spacingOffset += currentSpacing
+		file.spacingOffset = runeWidthIncrease(file.spacingOffset, r)
 	}
 	if file.spacingOffset == oldSpacingOffset {
 		return
