@@ -46,25 +46,14 @@ func (file *File) calculateOffset(isInsert bool) {
 	oldSpacingOffset := file.spacingOffset
 	file.runeOffset = 0
 	file.spacingOffset = 0
-	if len(file.Current.Data) == 0 {
-		return
-	}
-	for _, r := range file.Current.Data {
-		if file.runeWidthIncrease(r) > oldSpacingOffset {
-			if file.runeOffset < 0 {
-				file.runeOffset = 0
-				file.spacingOffset = 0
-			}
+	for i, r := range file.Current.Data {
+		if !isInsert && i == len(file.Current.Data)-1 {
 			return
 		}
-		file.runeOffset++
+		if file.runeWidthIncrease(r) > oldSpacingOffset {
+			return
+		}
 		file.spacingOffset = file.runeWidthIncrease(r)
-	}
-	if file.spacingOffset == oldSpacingOffset {
-		return
-	}
-	if isInsert {
 		file.runeOffset++
-		file.spacingOffset++
 	}
 }

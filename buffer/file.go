@@ -96,7 +96,7 @@ func (file *File) runeWidthDecrease(r rune) int {
 
 func runeWidthJump(r rune, offset int) int {
 	if r == '\t' {
-		return int(math.Ceil(float64(offset)/float64(TabSize)) * TabSize)
+		return int(math.Ceil(float64(offset+1)/float64(TabSize)) * TabSize)
 	}
 	return offset + runewidth.RuneWidth(r)
 }
