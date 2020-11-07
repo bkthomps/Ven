@@ -8,7 +8,7 @@ func (file *File) Add(character rune) (xPosition int, addedLine bool) {
 		file.spacingOffset = 0
 		return file.spacingOffset, true
 	}
-	file.spacingOffset = runeWidthIncrease(file.spacingOffset, character)
+	file.spacingOffset = file.runeWidthIncrease(character)
 	file.Current.AddAt(file.runeOffset, character)
 	file.runeOffset++
 	return file.spacingOffset, false
@@ -36,7 +36,7 @@ func (file *File) Remove() (xPosition int) {
 	file.mutated = true
 	if file.runeOffset > 0 && file.runeOffset == len(file.Current.Data)-1 {
 		r := file.Current.Data[file.runeOffset]
-		file.spacingOffset = runeWidthDecrease(file.spacingOffset, r)
+		file.spacingOffset = file.runeWidthDecrease(r)
 		file.runeOffset--
 	}
 	file.Current.RemoveAt(file.runeOffset)
@@ -48,7 +48,7 @@ func (file *File) RemoveBefore() (xPosition int) {
 		return file.spacingOffset
 	}
 	r := file.Current.Data[file.runeOffset]
-	file.spacingOffset = runeWidthDecrease(file.spacingOffset, r)
+	file.spacingOffset = file.runeWidthDecrease(r)
 	file.runeOffset--
 	file.Current.RemoveAt(file.runeOffset)
 	file.mutated = true
@@ -77,7 +77,7 @@ func (file *File) Backspace() (xPosition int, deletedLine bool) {
 	}
 	file.runeOffset--
 	r := file.Current.Data[file.runeOffset]
-	file.spacingOffset = runeWidthDecrease(file.spacingOffset, r)
+	file.spacingOffset = file.runeWidthDecrease(r)
 	file.Current.RemoveAt(file.runeOffset)
 	return file.spacingOffset, false
 }
