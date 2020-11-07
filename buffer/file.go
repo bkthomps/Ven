@@ -80,21 +80,21 @@ func (file *File) Save() error {
 }
 
 func (file *File) runeWidthIncrease(r rune) int {
-	return runeWidthJump(r, file.spacingOffset)
+	return RuneWidthJump(r, file.spacingOffset)
 }
 
 func (file *File) runeWidthDecrease(r rune) int {
 	if r == '\t' {
 		offset := 0
 		for i := 0; i < file.runeOffset; i++ {
-			offset = runeWidthJump(file.Current.Data[i], offset)
+			offset = RuneWidthJump(file.Current.Data[i], offset)
 		}
 		return offset
 	}
 	return file.spacingOffset - runewidth.RuneWidth(r)
 }
 
-func runeWidthJump(r rune, offset int) int {
+func RuneWidthJump(r rune, offset int) int {
 	if r == '\t' {
 		return int(math.Ceil(float64(offset+1)/float64(TabSize)) * TabSize)
 	}
