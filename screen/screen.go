@@ -24,7 +24,6 @@ const (
 
 var (
 	terminalStyle  = tcell.StyleDefault.Foreground(tcell.ColorBlack)
-	cursorStyle    = terminalStyle.Background(tcell.ColorDarkGray)
 	highlightStyle = terminalStyle.Background(tcell.ColorYellow)
 )
 
@@ -112,11 +111,6 @@ func (screen *Screen) completeDraw(matchLines *[]search.MatchLine) {
 	}
 }
 
-func (screen *Screen) drawColor(x, y int, s tcell.Style) {
-	r, _, _, _ := screen.tCell.GetContent(x, y)
-	screen.tCell.SetContent(x, y, r, nil, s)
-}
-
 func (screen *Screen) displayError(error string) {
 	screen.putCommand(screen.blankLine)
 	screen.putCommand(error)
@@ -134,9 +128,9 @@ func (screen *Screen) displayMode() {
 	case commandMode:
 		screen.putCommand(screen.blankLine)
 		screen.putCommand(screen.command.current)
-		screen.drawColor(screen.command.xCursor, screen.command.yPosition, cursorStyle)
+		screen.tCell.ShowCursor(screen.command.xCursor, screen.command.yPosition)
 	case commandErrorMode:
-		screen.drawColor(screen.command.xCursor, screen.command.yPosition, terminalStyle)
+		screen.tCell.HideCursor()
 	}
 	screen.tCell.Sync()
 }
