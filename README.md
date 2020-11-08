@@ -31,6 +31,9 @@ There are three modes: normal mode, command mode, and insertion mode.
 * `k` or up arrow to go up
 * `h` or left arrow to go left
 * `l` or right arrow to go right
+* `H` to move the cursor to the top of the screen
+* `M` to move the cursor to the middle of the screen
+* `L` to move the cursor to the bottom of the screen
 * `x` delete character under the cursor
 * `X` delete character before the cursor
 * `dd` delete entire line
