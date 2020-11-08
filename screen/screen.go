@@ -225,6 +225,16 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 		screen.mode = normalMode
 	case tcell.KeyEnter:
 		screen.executeCommand(quit)
+	case tcell.KeyDown, tcell.KeyUp:
+		// Do Nothing
+	case tcell.KeyLeft:
+		if screen.command.xCursor > 1 {
+			screen.command.xCursor--
+		}
+	case tcell.KeyRight:
+		if screen.command.xCursor < len(screen.command.current) {
+			screen.command.xCursor++
+		}
 	case tcell.KeyDEL:
 		screen.completeDraw(nil)
 		if screen.command.xCursor <= 1 && len(screen.command.current) > 1 {
@@ -239,16 +249,6 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 			screen.mode = normalMode
 		}
 		screen.command.xCursor--
-	case tcell.KeyDown, tcell.KeyUp:
-		// Do Nothing
-	case tcell.KeyLeft:
-		if screen.command.xCursor > 1 {
-			screen.command.xCursor--
-		}
-	case tcell.KeyRight:
-		if screen.command.xCursor < len(screen.command.current) {
-			screen.command.xCursor++
-		}
 	default:
 		screen.command.current += string(ev.Rune())
 		screen.command.xCursor++
