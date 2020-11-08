@@ -34,18 +34,25 @@ func AllMatches(pattern string, start *buffer.Line, maxLineCount int) (matches [
 		if count == 0 {
 			firstLineIndex++
 		}
-		indices := re.FindAllStringIndex(string(traverse.Data), -1)
+		strData := string(traverse.Data)
+		indices := re.FindAllStringIndex(strData, -1)
 		if len(indices) == 0 {
 			continue
 		}
 		if count == 0 {
 			count++
 		}
+		byteToRuneIndex := make(map[int]int, 0)
+		runeIndex := 0
+		for byteIndex := range strData {
+			byteToRuneIndex[byteIndex] = runeIndex
+			runeIndex++
+		}
 		matchInstances := make([]MatchInstance, 0)
 		for _, pair := range indices {
 			instance := MatchInstance{
-				StartOffset: pair[0],
-				Length:      pair[1] - pair[0],
+				StartOffset: byteToRuneIndex[pair[0]],
+				Length:      byteToRuneIndex[pair[1]] - byteToRuneIndex[pair[0]],
 			}
 			matchInstances = append(matchInstances, instance)
 		}

@@ -227,3 +227,41 @@ func TestRegex(t *testing.T) {
 		}
 	}
 }
+
+func TestUnicode(t *testing.T) {
+	line := &buffer.Line{}
+	i := 0
+	repetitions := 3
+	for j := 0; j < repetitions; j++ {
+		line.AddAt(i, '象')
+		i++
+		line.AddAt(i, '形')
+		i++
+		line.AddAt(i, '字')
+		i++
+		line.AddAt(i, '㫃')
+		i++
+		line.AddAt(i, '池')
+		i++
+	}
+	matches, _ := AllMatches("形字", line, 40)
+	if len(matches) != 1 {
+		t.Error("bad match count")
+	}
+	for _, match := range matches {
+		if len(match.Instances) != repetitions {
+			t.Error("bad match count")
+		}
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		for i, instance := range match.Instances {
+			if instance.StartOffset != 5*i+1 {
+				t.Errorf("bad match offset: %d", instance.StartOffset)
+			}
+			if instance.Length != 2 {
+				t.Errorf("bad match length: %d", instance.Length)
+			}
+		}
+	}
+}
