@@ -21,3 +21,16 @@ func (line *Line) AddAt(index int, character rune) {
 func (line *Line) RemoveAt(index int) {
 	line.Data = append(line.Data[:index], line.Data[index+1:]...)
 }
+
+func (line *Line) Equals(str string) bool {
+	runes := []rune(str)
+	if len(line.Data) != len(runes) {
+		return false
+	}
+	for i, r := range line.Data {
+		if r != runes[i] {
+			return false
+		}
+	}
+	return true
+}

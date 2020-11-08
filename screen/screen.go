@@ -9,18 +9,18 @@ import (
 )
 
 const (
-	insertMessage = "-- INSERT --"
-	errorCommand  = "-- Invalid Command --"
-	errorSave     = "-- Could Not Save File --"
-	modifiedFile  = "-- File Has Been Modified Since Last Save --"
-	badRegex      = "-- Malformed Regex --"
-)
-
-const (
 	insertMode = iota
 	normalMode
 	commandMode
 	commandErrorMode
+)
+
+var (
+	insertMessage = []rune("-- INSERT --")
+	errorCommand  = []rune("-- Invalid Command --")
+	errorSave     = []rune("-- Could Not Save File --")
+	modifiedFile  = []rune("-- File Has Been Modified Since Last Save --")
+	badRegex      = []rune("-- Malformed Regex --")
 )
 
 var (
@@ -39,10 +39,11 @@ type file struct {
 }
 
 type command struct {
-	xCursor   int
-	yPosition int
-	current   string
-	old       string
+	runeOffset  int
+	spaceOffset int
+	yPosition   int
+	current     buffer.Line
+	old         buffer.Line
 }
 
 type Screen struct {
@@ -108,7 +109,7 @@ func (screen *Screen) completeDraw(matchLines *[]search.MatchLine) {
 	}
 }
 
-func (screen *Screen) displayError(error string) {
+func (screen *Screen) displayError(error []rune) {
 	screen.clearCommand()
 	screen.putCommand(error)
 	screen.mode = commandErrorMode
@@ -124,8 +125,8 @@ func (screen *Screen) displayMode() {
 		screen.clearCommand()
 	case commandMode:
 		screen.clearCommand()
-		screen.putCommand(screen.command.current)
-		screen.tCell.ShowCursor(screen.command.xCursor, screen.command.yPosition)
+		screen.putCommand(screen.command.current.Data)
+		screen.tCell.ShowCursor(screen.command.spaceOffset, screen.command.yPosition)
 	case commandErrorMode:
 		screen.tCell.HideCursor()
 	}
@@ -136,8 +137,8 @@ func (screen *Screen) clearCommand() {
 	screen.drawBlankLine(screen.command.yPosition)
 }
 
-func (screen *Screen) putCommand(str string) {
-	screen.drawLine(screen.command.yPosition, []rune(str))
+func (screen *Screen) putCommand(runes []rune) {
+	screen.drawLine(screen.command.yPosition, runes)
 }
 
 func (screen *Screen) listener(quit chan struct{}) {
@@ -182,23 +183,24 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 	default:
 		switch ev.Rune() {
 		case 'i':
-			screen.command.old = ""
+			screen.command.old = buffer.Line{}
 			screen.mode = insertMode
 		case ':', '/':
-			screen.command.old = ""
+			screen.command.old = buffer.Line{}
 			screen.mode = commandMode
-			screen.command.current = string(ev.Rune())
-			screen.command.xCursor = len(screen.command.current)
+			screen.command.current = buffer.Line{Data: []rune{ev.Rune()}}
+			screen.command.runeOffset = 1
+			screen.command.spaceOffset = buffer.RuneWidthJump(ev.Rune(), 0)
 		case 'x':
-			screen.command.old = ""
+			screen.command.old = buffer.Line{}
 			screen.file.xCursor = screen.file.buffer.Remove()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		case 'X':
-			screen.command.old = ""
+			screen.command.old = buffer.Line{}
 			screen.file.xCursor = screen.file.buffer.RemoveBefore()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		case 'd':
-			if screen.command.old == "d" {
+			if screen.command.old.Equals("d") {
 				x, wasFirst, wasLast := screen.file.buffer.RemoveLine(screen.mode == insertMode)
 				screen.file.xCursor = x
 				if wasFirst {
@@ -207,12 +209,12 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 					screen.file.yCursor--
 				}
 				screen.completeDraw(nil)
-				screen.command.old = ""
+				screen.command.old = buffer.Line{}
 			} else {
-				screen.command.old = "d"
+				screen.command.old = buffer.Line{Data: []rune("d")}
 			}
 		case 'D':
-			screen.command.old = ""
+			screen.command.old = buffer.Line{}
 			screen.file.xCursor = screen.file.buffer.RemoveRestOfLine(screen.mode == insertMode)
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		}
@@ -225,33 +227,41 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 		screen.mode = normalMode
 	case tcell.KeyEnter:
 		screen.executeCommand(quit)
-	case tcell.KeyDEL:
-		screen.completeDraw(nil)
-		if screen.command.xCursor <= 1 && len(screen.command.current) > 1 {
-			break
-		}
-		runeCopy := []rune(screen.command.current)
-		copy(runeCopy[screen.command.xCursor-1:], runeCopy[screen.command.xCursor:])
-		shrinkSize := len(runeCopy) - 1
-		runeCopy = runeCopy[:shrinkSize]
-		screen.command.current = string(runeCopy)
-		if shrinkSize == 0 {
-			screen.mode = normalMode
-		}
-		screen.command.xCursor--
 	case tcell.KeyDown, tcell.KeyUp:
 		// Do Nothing
 	case tcell.KeyLeft:
-		if screen.command.xCursor > 1 {
-			screen.command.xCursor--
+		if screen.command.runeOffset > 1 {
+			screen.command.runeOffset--
+			r := screen.command.current.Data[screen.command.runeOffset]
+			runes := screen.command.current.Data
+			runeOffset := screen.command.runeOffset
+			spaceOffset := screen.command.spaceOffset
+			screen.command.spaceOffset = buffer.RuneWidthBackJump(r, runes, runeOffset, spaceOffset)
 		}
 	case tcell.KeyRight:
-		if screen.command.xCursor < len(screen.command.current) {
-			screen.command.xCursor++
+		if screen.command.runeOffset < len(screen.command.current.Data) {
+			r := screen.command.current.Data[screen.command.runeOffset]
+			screen.command.spaceOffset = buffer.RuneWidthJump(r, screen.command.spaceOffset)
+			screen.command.runeOffset++
+		}
+	case tcell.KeyDEL:
+		if screen.command.runeOffset == 1 && len(screen.command.current.Data) > 1 {
+			break
+		}
+		screen.command.runeOffset--
+		r := screen.command.current.Data[screen.command.runeOffset]
+		runes := screen.command.current.Data
+		runeOffset := screen.command.runeOffset
+		spaceOffset := screen.command.spaceOffset
+		screen.command.spaceOffset = buffer.RuneWidthBackJump(r, runes, runeOffset, spaceOffset)
+		screen.command.current.RemoveAt(screen.command.runeOffset)
+		if len(screen.command.current.Data) == 0 {
+			screen.mode = normalMode
 		}
 	default:
-		screen.command.current += string(ev.Rune())
-		screen.command.xCursor++
+		screen.command.current.AddAt(screen.command.runeOffset, ev.Rune())
+		screen.command.runeOffset++
+		screen.command.spaceOffset = buffer.RuneWidthJump(ev.Rune(), screen.command.spaceOffset)
 	}
 }
 
@@ -334,9 +344,9 @@ func (screen *Screen) actionKeyPress(rune rune) {
 }
 
 func (screen *Screen) executeCommand(quit chan struct{}) {
-	if len(screen.command.current) > 1 && screen.command.current[0] == '/' {
-		pattern := screen.command.current[1:]
-		matches, firstLineIndex, err := search.AllMatches(pattern, screen.firstLine, screen.file.height)
+	if len(screen.command.current.Data) > 1 && screen.command.current.Data[0] == '/' {
+		pattern := screen.command.current.Data[1:]
+		matches, firstLineIndex, err := search.AllMatches(string(pattern), screen.firstLine, screen.file.height)
 		if err != nil {
 			screen.displayError(badRegex)
 			return
@@ -351,25 +361,30 @@ func (screen *Screen) executeCommand(quit chan struct{}) {
 		screen.completeDraw(&matches)
 		return
 	}
-	switch screen.command.current {
-	case ":q":
+	if screen.command.current.Equals(":q") {
 		if screen.file.buffer.CanSafeQuit() {
 			close(quit)
 		} else {
 			screen.displayError(modifiedFile)
 		}
-	case ":q!":
+		return
+	}
+	if screen.command.current.Equals(":q!") {
 		close(quit)
-	case ":w":
+		return
+	}
+	if screen.command.current.Equals(":w") {
 		screen.write()
-	case ":wq":
+		return
+	}
+	if screen.command.current.Equals(":wq") {
 		saved := screen.write()
 		if saved {
 			close(quit)
 		}
-	default:
-		screen.displayError(errorCommand)
+		return
 	}
+	screen.displayError(errorCommand)
 }
 
 func (screen *Screen) write() (saved bool) {

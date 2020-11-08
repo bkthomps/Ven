@@ -83,20 +83,24 @@ func (file *File) runeWidthIncrease(r rune) int {
 	return RuneWidthJump(r, file.spacingOffset)
 }
 
-func (file *File) runeWidthDecrease(r rune) int {
-	if r == '\t' {
-		offset := 0
-		for i := 0; i < file.runeOffset; i++ {
-			offset = RuneWidthJump(file.Current.Data[i], offset)
-		}
-		return offset
-	}
-	return file.spacingOffset - runewidth.RuneWidth(r)
-}
-
 func RuneWidthJump(r rune, offset int) int {
 	if r == '\t' {
 		return int(math.Ceil(float64(offset+1)/float64(TabSize)) * TabSize)
 	}
 	return offset + runewidth.RuneWidth(r)
+}
+
+func (file *File) runeWidthDecrease(r rune) int {
+	return RuneWidthBackJump(r, file.Current.Data, file.runeOffset, file.spacingOffset)
+}
+
+func RuneWidthBackJump(r rune, runes []rune, runeOffset, spacingOffset int) int {
+	if r == '\t' {
+		offset := 0
+		for i := 0; i < runeOffset; i++ {
+			offset = RuneWidthJump(runes[i], offset)
+		}
+		return offset
+	}
+	return spacingOffset - runewidth.RuneWidth(r)
 }
