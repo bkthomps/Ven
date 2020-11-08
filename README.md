@@ -1,28 +1,23 @@
+[![GitHubBuild](https://github.com/bkthomps/Ven/workflows/build/badge.svg)](https://github.com/bkthomps/Ven)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bkthomps/Ven)](https://goreportcard.com/report/github.com/bkthomps/Ven)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/bkthomps/Ven)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/bkthomps/Ven?tab=overview)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/bkthomps/Ven/blob/master/LICENSE)
 
 # Ven
 Vi Enhanced. A text editor which is an enhancement to vi, and is similar to vim, but written in Go. Uses a gap buffer to store the text.
 
 ## Installation
-* Download golang if you do not yet have it
-* Get Ven:
+* Download golang if you have not yet done so
+* Run:
   ```
   go get github.com/bkthomps/Ven
+  go build $GOPATH/src/github.com/bkthomps/Ven
   ```
-* Go to the Ven directory:
+* Then add this to your bashrc:
   ```
-  cd ~/go/src/github.com/bkthomps/Ven
+  alias ven='$GOPATH/src/github.com/bkthomps/Ven/Ven'
   ```
-* Build Ven:
-  ```
-  go build
-  ```
-* Add this to your bashrc:
-  ```
-  alias ven='~/go/src/github.com/bkthomps/Ven/Ven'
-  ```
-* Now you can run Ven anywhere with `ven <filename>`
+* You can now run Ven from anywhere using `ven <filename>`
 
 ## Commands
 There are three modes: normal mode, command mode, and insertion mode.
