@@ -335,8 +335,7 @@ func (screen *Screen) actionKeyPress(rune rune) {
 func (screen *Screen) executeCommand(quit chan struct{}) {
 	if len(screen.command.current) > 1 && screen.command.current[0] == '/' {
 		pattern := screen.command.current[1:]
-		matches, firstLineIndex :=
-			search.AllMatches(pattern, screen.file.buffer.Current, screen.file.height)
+		matches, firstLineIndex := search.AllMatches(pattern, screen.firstLine, screen.file.height)
 		if len(matches) > 0 && firstLineIndex > screen.file.height-screen.file.yCursor {
 			for i := 0; i < firstLineIndex-1; i++ {
 				_, x := screen.file.buffer.Down(screen.mode == insertMode)
