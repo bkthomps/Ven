@@ -13,7 +13,7 @@ func TestSingleLineNoMatches(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches, _ := AllMatches("zyx", line, 40)
+	matches, _, _ := AllMatches("zyx", line, 40)
 	if len(matches) != 0 {
 		t.Error("expected no matches")
 	}
@@ -26,7 +26,7 @@ func TestSingleLineSingleMatch(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches, _ := AllMatches("cde", line, 40)
+	matches, _, _ := AllMatches("cde", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -55,7 +55,7 @@ func TestSingleLineMultipleMatches(t *testing.T) {
 			i++
 		}
 	}
-	matches, _ := AllMatches("cde", line, 40)
+	matches, _, _ := AllMatches("cde", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -88,7 +88,7 @@ func TestMultipleLinesMultipleMatches(t *testing.T) {
 		}
 		file.Add('\n')
 	}
-	matches, _ := AllMatches("cde", file.First, 40)
+	matches, _, _ := AllMatches("cde", file.First, 40)
 	if len(matches) != repetitions {
 		t.Error("bad match count")
 	}
@@ -121,7 +121,7 @@ func TestMultipleLinesMultipleMatchesCropped(t *testing.T) {
 		}
 		file.Add('\n')
 	}
-	matches, _ := AllMatches("cde", file.First, 2)
+	matches, _, _ := AllMatches("cde", file.First, 2)
 	if len(matches) != 2 {
 		t.Error("bad match count")
 	}
@@ -152,7 +152,7 @@ func TestRegexDot(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches, _ := AllMatches("c.e", line, 40)
+	matches, _, _ := AllMatches("c.e", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -178,7 +178,7 @@ func TestRegexStar(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches, _ := AllMatches("a.*z", line, 40)
+	matches, _, _ := AllMatches("a.*z", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -204,7 +204,7 @@ func TestRegexPipe(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches, _ := AllMatches("(c.e)|(f.h)", line, 40)
+	matches, _, _ := AllMatches("(c.e)|(f.h)", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -233,7 +233,7 @@ func TestRegexBrackets(t *testing.T) {
 		line.AddAt(i, c)
 		i++
 	}
-	matches, _ := AllMatches("[a-d]", line, 40)
+	matches, _, _ := AllMatches("[a-d]", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -271,7 +271,7 @@ func TestUnicode(t *testing.T) {
 		line.AddAt(i, '池')
 		i++
 	}
-	matches, _ := AllMatches("形字", line, 40)
+	matches, _, _ := AllMatches("形字", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -300,7 +300,7 @@ func TestUnicodeRegex(t *testing.T) {
 	line.AddAt(2, '字')
 	line.AddAt(3, '㫃')
 	line.AddAt(4, '池')
-	matches, _ := AllMatches("象.*池", line, 40)
+	matches, _, _ := AllMatches("象.*池", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -319,5 +319,13 @@ func TestUnicodeRegex(t *testing.T) {
 				t.Errorf("bad match length: %d", instance.Length)
 			}
 		}
+	}
+}
+
+func TestMalformedRegex(t *testing.T) {
+	line := &buffer.Line{}
+	_, _, err := AllMatches("*", line, 40)
+	if err == nil {
+		t.Error("expected an error")
 	}
 }

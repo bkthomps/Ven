@@ -1,6 +1,7 @@
 package search
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/bkthomps/Ven/buffer"
@@ -16,19 +17,19 @@ type MatchInstance struct {
 	Length      int
 }
 
-func AllMatches(pattern string, start *buffer.Line, maxLineCount int) (matches []MatchLine, firstLineIndex int) {
+func AllMatches(pattern string, start *buffer.Line, maxLineCount int) (matches []MatchLine, firstLineIndex int, error error) {
 	count := 0
 	firstLineIndex = 0
 	matches = make([]MatchLine, 0)
 	re, err := regexp.Compile(pattern)
 	if err != nil {
-		return matches, 0
+		return matches, 0, fmt.Errorf("invalid regex: %w", err)
 	}
 	for traverse := start; traverse != nil; traverse = traverse.Next {
 		if count > 0 {
 			count++
 			if count > maxLineCount {
-				return matches, firstLineIndex
+				return matches, firstLineIndex, nil
 			}
 		}
 		if count == 0 {
@@ -62,5 +63,5 @@ func AllMatches(pattern string, start *buffer.Line, maxLineCount int) (matches [
 		}
 		matches = append(matches, match)
 	}
-	return matches, firstLineIndex
+	return matches, firstLineIndex, nil
 }
