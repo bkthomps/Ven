@@ -1,5 +1,6 @@
 [![GitHubBuild](https://github.com/bkthomps/Ven/workflows/build/badge.svg)](https://github.com/bkthomps/Ven)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bkthomps/Ven)](https://goreportcard.com/report/github.com/bkthomps/Ven)
+[![codecov](https://codecov.io/gh/bkthomps/Ven/branch/master/graph/badge.svg)](https://codecov.io/gh/bkthomps/Ven)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/bkthomps/Ven?tab=overview)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/bkthomps/Ven/blob/master/LICENSE)
 
