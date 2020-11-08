@@ -27,6 +27,10 @@ There are three modes: normal mode, command mode, and insertion mode.
 * `i` to go into insertion mode
 * `:` to go into command mode
 * `/` to go into command (search) mode
+* `j` or down arrow to go down
+* `k` or up arrow to go up
+* `h` or left arrow to go left
+* `l` or right arrow to go right
 * `x` delete character under the cursor
 * `X` delete character before the cursor
 * `dd` delete entire line
