@@ -28,6 +28,18 @@ var (
 	highlightStyle = terminalStyle.Background(tcell.ColorYellow)
 )
 
+type Screen struct {
+	tCell     tcell.Screen
+	mode      int
+	firstLine *buffer.Line
+
+	height int
+	width  int
+
+	file    *file
+	command *command
+}
+
 type file struct {
 	xCursor int
 	yCursor int
@@ -44,18 +56,6 @@ type command struct {
 	yPosition   int
 	current     buffer.Line
 	old         buffer.Line
-}
-
-type Screen struct {
-	tCell     tcell.Screen
-	mode      int
-	firstLine *buffer.Line
-
-	height int
-	width  int
-
-	file    *file
-	command *command
 }
 
 func (screen *Screen) Init(tCellScreen tcell.Screen, quit chan struct{}, fileName string) {
@@ -176,144 +176,6 @@ func (screen *Screen) executeInsertMode(ev *tcell.EventKey) {
 	}
 }
 
-func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
-	previousCommand := screen.command.old
-	screen.command.old = buffer.Line{}
-	switch ev.Key() {
-	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
-		screen.bufferAction(ev)
-	default:
-		switch ev.Rune() {
-		case 'j':
-			screen.actionDown()
-		case 'k':
-			screen.actionUp()
-		case 'h':
-			screen.actionLeft()
-		case 'l':
-			screen.actionRight()
-		case 'i':
-			screen.mode = insertMode
-		case ':', '/':
-			screen.mode = commandMode
-			screen.command.current = buffer.Line{Data: []rune{ev.Rune()}}
-			screen.command.runeOffset = 1
-			screen.command.spaceOffset = buffer.RuneWidthJump(ev.Rune(), 0)
-		case 'H':
-			screen.file.xCursor = screen.file.buffer.StartOfLine()
-			for screen.file.yCursor > 0 {
-				isPossible, _ := screen.file.buffer.Up(screen.mode == insertMode)
-				if !isPossible {
-					break
-				}
-				screen.file.yCursor--
-			}
-			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
-		case 'M':
-			screen.file.xCursor = screen.file.buffer.StartOfLine()
-			height := screen.file.height - 1
-			if screen.file.buffer.Lines < height {
-				height = screen.file.buffer.Lines
-			}
-			for screen.file.yCursor > height/2 {
-				isPossible, _ := screen.file.buffer.Up(screen.mode == insertMode)
-				if !isPossible {
-					break
-				}
-				screen.file.yCursor--
-			}
-			for screen.file.yCursor < height/2 {
-				isPossible, _ := screen.file.buffer.Down(screen.mode == insertMode)
-				if !isPossible {
-					break
-				}
-				screen.file.yCursor++
-			}
-			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
-		case 'L':
-			screen.file.xCursor = screen.file.buffer.StartOfLine()
-			height := screen.file.height - 1
-			if screen.file.buffer.Lines < height {
-				height = screen.file.buffer.Lines
-			}
-			for screen.file.yCursor < height {
-				isPossible, _ := screen.file.buffer.Down(screen.mode == insertMode)
-				if !isPossible {
-					break
-				}
-				screen.file.yCursor++
-			}
-			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
-		case 'x':
-			screen.file.xCursor = screen.file.buffer.Remove()
-			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
-		case 'X':
-			screen.file.xCursor = screen.file.buffer.RemoveBefore()
-			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
-		case 'd':
-			if previousCommand.Equals("d") {
-				x, wasFirst, wasLast := screen.file.buffer.RemoveLine(screen.mode == insertMode)
-				screen.file.xCursor = x
-				if wasFirst {
-					screen.firstLine = screen.firstLine.Next
-				} else if wasLast {
-					screen.file.yCursor--
-				}
-				screen.completeDraw(nil)
-			} else {
-				screen.command.old = buffer.Line{Data: []rune("d")}
-			}
-		case 'D':
-			screen.file.xCursor = screen.file.buffer.RemoveRestOfLine(screen.mode == insertMode)
-			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
-		}
-	}
-}
-
-func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
-	switch ev.Key() {
-	case tcell.KeyEsc:
-		screen.mode = normalMode
-	case tcell.KeyEnter:
-		screen.executeCommand(quit)
-	case tcell.KeyDown, tcell.KeyUp:
-		// Do Nothing
-	case tcell.KeyLeft:
-		if screen.command.runeOffset > 1 {
-			screen.command.runeOffset--
-			r := screen.command.current.Data[screen.command.runeOffset]
-			runes := screen.command.current.Data
-			runeOffset := screen.command.runeOffset
-			spaceOffset := screen.command.spaceOffset
-			screen.command.spaceOffset = buffer.RuneWidthBackJump(r, runes, runeOffset, spaceOffset)
-		}
-	case tcell.KeyRight:
-		if screen.command.runeOffset < len(screen.command.current.Data) {
-			r := screen.command.current.Data[screen.command.runeOffset]
-			screen.command.spaceOffset = buffer.RuneWidthJump(r, screen.command.spaceOffset)
-			screen.command.runeOffset++
-		}
-	case tcell.KeyDEL:
-		if screen.command.runeOffset == 1 && len(screen.command.current.Data) > 1 {
-			break
-		}
-		screen.command.runeOffset--
-		r := screen.command.current.Data[screen.command.runeOffset]
-		runes := screen.command.current.Data
-		runeOffset := screen.command.runeOffset
-		spaceOffset := screen.command.spaceOffset
-		screen.command.spaceOffset = buffer.RuneWidthBackJump(r, runes, runeOffset, spaceOffset)
-		screen.command.current.RemoveAt(screen.command.runeOffset)
-		if len(screen.command.current.Data) == 0 {
-			screen.mode = normalMode
-		}
-	default:
-		screen.command.current.AddAt(screen.command.runeOffset, ev.Rune())
-		screen.command.runeOffset++
-		screen.command.spaceOffset = buffer.RuneWidthJump(ev.Rune(), screen.command.spaceOffset)
-	}
-}
-
 func (screen *Screen) bufferAction(ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyDown:
@@ -390,50 +252,6 @@ func (screen *Screen) actionKeyPress(rune rune) {
 		}
 		screen.completeDraw(nil)
 	}
-}
-
-func (screen *Screen) executeCommand(quit chan struct{}) {
-	if len(screen.command.current.Data) > 1 && screen.command.current.Data[0] == '/' {
-		pattern := screen.command.current.Data[1:]
-		matches, firstLineIndex, err := search.AllMatches(string(pattern), screen.firstLine, screen.file.height)
-		if err != nil {
-			screen.displayError(badRegex)
-			return
-		}
-		if len(matches) > 0 && firstLineIndex > screen.file.height-screen.file.yCursor {
-			for i := 0; i < firstLineIndex-1; i++ {
-				_, x := screen.file.buffer.Down(screen.mode == insertMode)
-				screen.file.xCursor = x
-				screen.firstLine = screen.firstLine.Next
-			}
-		}
-		screen.completeDraw(&matches)
-		return
-	}
-	if screen.command.current.Equals(":q") {
-		if screen.file.buffer.CanSafeQuit() {
-			close(quit)
-		} else {
-			screen.displayError(modifiedFile)
-		}
-		return
-	}
-	if screen.command.current.Equals(":q!") {
-		close(quit)
-		return
-	}
-	if screen.command.current.Equals(":w") {
-		screen.write()
-		return
-	}
-	if screen.command.current.Equals(":wq") {
-		saved := screen.write()
-		if saved {
-			close(quit)
-		}
-		return
-	}
-	screen.displayError(errorCommand)
 }
 
 func (screen *Screen) write() (saved bool) {
