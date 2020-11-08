@@ -190,7 +190,7 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			screen.mode = commandMode
 			screen.command.current = buffer.Line{Data: []rune{ev.Rune()}}
 			screen.command.runeOffset = 1
-			screen.command.spaceOffset = buffer.RuneWidthJump(ev.Rune(), screen.command.spaceOffset)
+			screen.command.spaceOffset = buffer.RuneWidthJump(ev.Rune(), 0)
 		case 'x':
 			screen.command.old = buffer.Line{}
 			screen.file.xCursor = screen.file.buffer.Remove()
@@ -232,7 +232,8 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 	case tcell.KeyLeft:
 		if screen.command.runeOffset > 1 {
 			screen.command.runeOffset--
-			screen.command.spaceOffset-- // TODO: spaceOffset not always 1
+			r := screen.command.current.Data[screen.command.runeOffset]
+			screen.command.spaceOffset = buffer.RuneWidthBackJump(r, screen.command.current.Data, screen.command.runeOffset, screen.command.spaceOffset)
 		}
 	case tcell.KeyRight:
 		if screen.command.runeOffset < len(screen.command.current.Data) {
@@ -244,7 +245,8 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 			break
 		}
 		screen.command.runeOffset--
-		screen.command.spaceOffset-- // TODO: spaceOffset not always 1
+		r := screen.command.current.Data[screen.command.runeOffset]
+		screen.command.spaceOffset = buffer.RuneWidthBackJump(r, screen.command.current.Data, screen.command.runeOffset, screen.command.spaceOffset)
 		screen.command.current.RemoveAt(screen.command.runeOffset)
 		if len(screen.command.current.Data) == 0 {
 			screen.mode = normalMode
