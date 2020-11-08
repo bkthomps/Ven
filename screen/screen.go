@@ -199,6 +199,51 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			screen.command.current = buffer.Line{Data: []rune{ev.Rune()}}
 			screen.command.runeOffset = 1
 			screen.command.spaceOffset = buffer.RuneWidthJump(ev.Rune(), 0)
+		case 'H':
+			screen.file.xCursor = screen.file.buffer.StartOfLine()
+			for screen.file.yCursor > 0 {
+				isPossible, _ := screen.file.buffer.Up(screen.mode == insertMode)
+				if !isPossible {
+					break
+				}
+				screen.file.yCursor--
+			}
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
+		case 'M':
+			screen.file.xCursor = screen.file.buffer.StartOfLine()
+			height := screen.file.height - 1
+			if screen.file.buffer.Lines < height {
+				height = screen.file.buffer.Lines
+			}
+			for screen.file.yCursor > height/2 {
+				isPossible, _ := screen.file.buffer.Up(screen.mode == insertMode)
+				if !isPossible {
+					break
+				}
+				screen.file.yCursor--
+			}
+			for screen.file.yCursor < height/2 {
+				isPossible, _ := screen.file.buffer.Down(screen.mode == insertMode)
+				if !isPossible {
+					break
+				}
+				screen.file.yCursor++
+			}
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
+		case 'L':
+			screen.file.xCursor = screen.file.buffer.StartOfLine()
+			height := screen.file.height - 1
+			if screen.file.buffer.Lines < height {
+				height = screen.file.buffer.Lines
+			}
+			for screen.file.yCursor < height {
+				isPossible, _ := screen.file.buffer.Down(screen.mode == insertMode)
+				if !isPossible {
+					break
+				}
+				screen.file.yCursor++
+			}
+			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		case 'x':
 			screen.file.xCursor = screen.file.buffer.Remove()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)

@@ -24,7 +24,7 @@ func (file *File) addLine() {
 	}
 	file.Current.Next = line
 	file.Current = line
-	file.lines++
+	file.Lines++
 	if file.runeOffset == 0 {
 		line.Data = line.Prev.Data
 		line.Prev.Data = make([]rune, 0)
@@ -77,7 +77,7 @@ func (file *File) Backspace() (xPosition int, deletedLine bool) {
 		} else {
 			file.last = file.Current
 		}
-		file.lines--
+		file.Lines--
 		return file.spacingOffset, true
 	}
 	file.runeOffset--
@@ -103,7 +103,7 @@ func (file *File) RemoveLine(isInsert bool) (xPosition int, wasFirst bool, wasLa
 		file.Current = file.Current.Next
 		file.Current.Prev = nil
 		file.First = file.Current
-		file.lines--
+		file.Lines--
 		file.calculateOffset(isInsert)
 		return file.spacingOffset, true, false
 	}
@@ -111,7 +111,7 @@ func (file *File) RemoveLine(isInsert bool) (xPosition int, wasFirst bool, wasLa
 		file.Current = file.Current.Prev
 		file.Current.Next = nil
 		file.last = file.Current
-		file.lines--
+		file.Lines--
 		file.calculateOffset(isInsert)
 		return file.spacingOffset, false, true
 	}
@@ -119,7 +119,7 @@ func (file *File) RemoveLine(isInsert bool) (xPosition int, wasFirst bool, wasLa
 	deleteNode.Prev.Next = deleteNode.Next
 	deleteNode.Next.Prev = deleteNode.Prev
 	file.Current = deleteNode.Next
-	file.lines--
+	file.Lines--
 	file.calculateOffset(isInsert)
 	return file.spacingOffset, false, false
 }
