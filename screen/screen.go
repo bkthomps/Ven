@@ -177,30 +177,36 @@ func (screen *Screen) executeInsertMode(ev *tcell.EventKey) {
 }
 
 func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
+	previousCommand := screen.command.old
+	screen.command.old = buffer.Line{}
 	switch ev.Key() {
 	case tcell.KeyDown, tcell.KeyUp, tcell.KeyLeft, tcell.KeyRight:
 		screen.bufferAction(ev)
 	default:
 		switch ev.Rune() {
+		case 'j':
+			screen.actionDown()
+		case 'k':
+			screen.actionUp()
+		case 'h':
+			screen.actionLeft()
+		case 'l':
+			screen.actionRight()
 		case 'i':
-			screen.command.old = buffer.Line{}
 			screen.mode = insertMode
 		case ':', '/':
-			screen.command.old = buffer.Line{}
 			screen.mode = commandMode
 			screen.command.current = buffer.Line{Data: []rune{ev.Rune()}}
 			screen.command.runeOffset = 1
 			screen.command.spaceOffset = buffer.RuneWidthJump(ev.Rune(), 0)
 		case 'x':
-			screen.command.old = buffer.Line{}
 			screen.file.xCursor = screen.file.buffer.Remove()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		case 'X':
-			screen.command.old = buffer.Line{}
 			screen.file.xCursor = screen.file.buffer.RemoveBefore()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		case 'd':
-			if screen.command.old.Equals("d") {
+			if previousCommand.Equals("d") {
 				x, wasFirst, wasLast := screen.file.buffer.RemoveLine(screen.mode == insertMode)
 				screen.file.xCursor = x
 				if wasFirst {
@@ -209,12 +215,10 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 					screen.file.yCursor--
 				}
 				screen.completeDraw(nil)
-				screen.command.old = buffer.Line{}
 			} else {
 				screen.command.old = buffer.Line{Data: []rune("d")}
 			}
 		case 'D':
-			screen.command.old = buffer.Line{}
 			screen.file.xCursor = screen.file.buffer.RemoveRestOfLine(screen.mode == insertMode)
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		}
