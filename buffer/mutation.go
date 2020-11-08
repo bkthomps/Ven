@@ -28,7 +28,7 @@ func (file *File) addLine() {
 	if file.runeOffset == 0 {
 		line.Data = line.Prev.Data
 		line.Prev.Data = make([]rune, 0)
-	} else {
+	} else if file.runeOffset < len(file.Current.Data)-1 {
 		line.Data = line.Prev.Data[file.runeOffset:]
 		line.Prev.Data = line.Prev.Data[:file.runeOffset]
 	}
