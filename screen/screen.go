@@ -233,11 +233,15 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 		if screen.command.runeOffset > 1 {
 			screen.command.runeOffset--
 			r := screen.command.current.Data[screen.command.runeOffset]
-			screen.command.spaceOffset = buffer.RuneWidthBackJump(r, screen.command.current.Data, screen.command.runeOffset, screen.command.spaceOffset)
+			runes := screen.command.current.Data
+			runeOffset := screen.command.runeOffset
+			spaceOffset := screen.command.spaceOffset
+			screen.command.spaceOffset = buffer.RuneWidthBackJump(r, runes, runeOffset, spaceOffset)
 		}
 	case tcell.KeyRight:
 		if screen.command.runeOffset < len(screen.command.current.Data) {
-			screen.command.spaceOffset = buffer.RuneWidthJump(screen.command.current.Data[screen.command.runeOffset], screen.command.spaceOffset)
+			r := screen.command.current.Data[screen.command.runeOffset]
+			screen.command.spaceOffset = buffer.RuneWidthJump(r, screen.command.spaceOffset)
 			screen.command.runeOffset++
 		}
 	case tcell.KeyDEL:
@@ -246,7 +250,10 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 		}
 		screen.command.runeOffset--
 		r := screen.command.current.Data[screen.command.runeOffset]
-		screen.command.spaceOffset = buffer.RuneWidthBackJump(r, screen.command.current.Data, screen.command.runeOffset, screen.command.spaceOffset)
+		runes := screen.command.current.Data
+		runeOffset := screen.command.runeOffset
+		spaceOffset := screen.command.spaceOffset
+		screen.command.spaceOffset = buffer.RuneWidthBackJump(r, runes, runeOffset, spaceOffset)
 		screen.command.current.RemoveAt(screen.command.runeOffset)
 		if len(screen.command.current.Data) == 0 {
 			screen.mode = normalMode
