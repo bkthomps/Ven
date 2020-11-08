@@ -145,7 +145,7 @@ func TestMultipleLinesMultipleMatchesCropped(t *testing.T) {
 	}
 }
 
-func TestRegex(t *testing.T) {
+func TestRegexDot(t *testing.T) {
 	line := &buffer.Line{}
 	i := 0
 	for c := 'a'; c <= 'z'; c++ {
@@ -169,7 +169,16 @@ func TestRegex(t *testing.T) {
 			}
 		}
 	}
-	matches, _ = AllMatches("a.*z", line, 40)
+}
+
+func TestRegexStar(t *testing.T) {
+	line := &buffer.Line{}
+	i := 0
+	for c := 'a'; c <= 'z'; c++ {
+		line.AddAt(i, c)
+		i++
+	}
+	matches, _ := AllMatches("a.*z", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -186,7 +195,16 @@ func TestRegex(t *testing.T) {
 			}
 		}
 	}
-	matches, _ = AllMatches("(c.e)|(f.h)", line, 40)
+}
+
+func TestRegexPipe(t *testing.T) {
+	line := &buffer.Line{}
+	i := 0
+	for c := 'a'; c <= 'z'; c++ {
+		line.AddAt(i, c)
+		i++
+	}
+	matches, _ := AllMatches("(c.e)|(f.h)", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -206,7 +224,16 @@ func TestRegex(t *testing.T) {
 			}
 		}
 	}
-	matches, _ = AllMatches("[a-d]", line, 40)
+}
+
+func TestRegexBrackets(t *testing.T) {
+	line := &buffer.Line{}
+	i := 0
+	for c := 'a'; c <= 'z'; c++ {
+		line.AddAt(i, c)
+		i++
+	}
+	matches, _ := AllMatches("[a-d]", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
