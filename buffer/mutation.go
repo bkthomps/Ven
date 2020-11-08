@@ -25,8 +25,13 @@ func (file *File) addLine() {
 	file.Current.Next = line
 	file.Current = line
 	file.lines++
-	line.Data = line.Prev.Data[file.runeOffset:]
-	line.Prev.Data = line.Prev.Data[:file.runeOffset]
+	if file.runeOffset == 0 {
+		line.Data = line.Prev.Data
+		line.Prev.Data = make([]rune, 0)
+	} else {
+		line.Data = line.Prev.Data[file.runeOffset:]
+		line.Prev.Data = line.Prev.Data[:file.runeOffset]
+	}
 }
 
 func (file *File) Remove() (xPosition int) {
