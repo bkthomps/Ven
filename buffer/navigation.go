@@ -57,3 +57,9 @@ func (file *File) calculateOffset(isInsert bool) {
 		file.runeOffset++
 	}
 }
+
+func (file *File) StartOfLine() (xPosition int) {
+	file.runeOffset = 0
+	file.spacingOffset = 0
+	return file.spacingOffset
+}

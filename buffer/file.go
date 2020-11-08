@@ -19,7 +19,7 @@ type File struct {
 	last  *Line
 
 	Current *Line
-	lines   int
+	Lines   int
 
 	runeOffset    int
 	spacingOffset int
@@ -32,7 +32,7 @@ func (file *File) Init(fileName string) {
 	file.First = line
 	file.last = line
 	file.Current = line
-	file.lines = 1
+	file.Lines = 1
 	arr := readFile(fileName)
 	for _, character := range arr[:len(arr)-1] {
 		file.Add(character)
