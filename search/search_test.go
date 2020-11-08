@@ -36,10 +36,10 @@ func TestSingleLineSingleMatch(t *testing.T) {
 		}
 		for _, instance := range match.Instances {
 			if instance.StartOffset != 2 {
-				t.Error("bad match offset")
+				t.Errorf("bad match offset: %d", instance.StartOffset)
 			}
 			if instance.Length != 3 {
-				t.Error("bad match length")
+				t.Errorf("bad match length: %d", instance.Length)
 			}
 		}
 	}
@@ -69,10 +69,10 @@ func TestSingleLineMultipleMatches(t *testing.T) {
 		}
 		for i, instance := range match.Instances {
 			if instance.StartOffset != charset*i+2 {
-				t.Error("bad match offset")
+				t.Errorf("bad match offset: %d", instance.StartOffset)
 			}
 			if instance.Length != 3 {
-				t.Error("bad match length")
+				t.Errorf("bad match length: %d", instance.Length)
 			}
 		}
 	}
@@ -102,10 +102,10 @@ func TestMultipleLinesMultipleMatches(t *testing.T) {
 		}
 		for _, instance := range match.Instances {
 			if instance.StartOffset != 2 {
-				t.Error("bad match offset")
+				t.Errorf("bad match offset: %d", instance.StartOffset)
 			}
 			if instance.Length != 3 {
-				t.Error("bad match length")
+				t.Errorf("bad match length: %d", instance.Length)
 			}
 		}
 		line = line.Next
@@ -135,17 +135,17 @@ func TestMultipleLinesMultipleMatchesCropped(t *testing.T) {
 		}
 		for _, instance := range match.Instances {
 			if instance.StartOffset != 2 {
-				t.Error("bad match offset")
+				t.Errorf("bad match offset: %d", instance.StartOffset)
 			}
 			if instance.Length != 3 {
-				t.Error("bad match length")
+				t.Errorf("bad match length: %d", instance.Length)
 			}
 		}
 		line = line.Next
 	}
 }
 
-func TestRegex(t *testing.T) {
+func TestRegexDot(t *testing.T) {
 	line := &buffer.Line{}
 	i := 0
 	for c := 'a'; c <= 'z'; c++ {
@@ -162,14 +162,23 @@ func TestRegex(t *testing.T) {
 		}
 		for _, instance := range match.Instances {
 			if instance.StartOffset != 2 {
-				t.Error("bad match offset")
+				t.Errorf("bad match offset: %d", instance.StartOffset)
 			}
 			if instance.Length != 3 {
-				t.Error("bad match length")
+				t.Errorf("bad match length: %d", instance.Length)
 			}
 		}
 	}
-	matches, _ = AllMatches("a.*z", line, 40)
+}
+
+func TestRegexStar(t *testing.T) {
+	line := &buffer.Line{}
+	i := 0
+	for c := 'a'; c <= 'z'; c++ {
+		line.AddAt(i, c)
+		i++
+	}
+	matches, _ := AllMatches("a.*z", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -179,14 +188,23 @@ func TestRegex(t *testing.T) {
 		}
 		for _, instance := range match.Instances {
 			if instance.StartOffset != 0 {
-				t.Error("bad match offset")
+				t.Errorf("bad match offset: %d", instance.StartOffset)
 			}
 			if instance.Length != 26 {
-				t.Error("bad match length")
+				t.Errorf("bad match length: %d", instance.Length)
 			}
 		}
 	}
-	matches, _ = AllMatches("(c.e)|(f.h)", line, 40)
+}
+
+func TestRegexPipe(t *testing.T) {
+	line := &buffer.Line{}
+	i := 0
+	for c := 'a'; c <= 'z'; c++ {
+		line.AddAt(i, c)
+		i++
+	}
+	matches, _ := AllMatches("(c.e)|(f.h)", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -199,14 +217,23 @@ func TestRegex(t *testing.T) {
 		}
 		for i, instance := range match.Instances {
 			if instance.StartOffset != 2+i*3 {
-				t.Error("bad match offset")
+				t.Errorf("bad match offset: %d", instance.StartOffset)
 			}
 			if instance.Length != 3 {
-				t.Error("bad match length")
+				t.Errorf("bad match length: %d", instance.Length)
 			}
 		}
 	}
-	matches, _ = AllMatches("[a-d]", line, 40)
+}
+
+func TestRegexBrackets(t *testing.T) {
+	line := &buffer.Line{}
+	i := 0
+	for c := 'a'; c <= 'z'; c++ {
+		line.AddAt(i, c)
+		i++
+	}
+	matches, _ := AllMatches("[a-d]", line, 40)
 	if len(matches) != 1 {
 		t.Error("bad match count")
 	}
@@ -219,10 +246,77 @@ func TestRegex(t *testing.T) {
 		}
 		for i, instance := range match.Instances {
 			if instance.StartOffset != i {
-				t.Error("bad match offset")
+				t.Errorf("bad match offset: %d", instance.StartOffset)
 			}
 			if instance.Length != 1 {
-				t.Error("bad match length")
+				t.Errorf("bad match length: %d", instance.Length)
+			}
+		}
+	}
+}
+
+func TestUnicode(t *testing.T) {
+	line := &buffer.Line{}
+	i := 0
+	repetitions := 3
+	for j := 0; j < repetitions; j++ {
+		line.AddAt(i, '象')
+		i++
+		line.AddAt(i, '形')
+		i++
+		line.AddAt(i, '字')
+		i++
+		line.AddAt(i, '㫃')
+		i++
+		line.AddAt(i, '池')
+		i++
+	}
+	matches, _ := AllMatches("形字", line, 40)
+	if len(matches) != 1 {
+		t.Error("bad match count")
+	}
+	for _, match := range matches {
+		if len(match.Instances) != repetitions {
+			t.Error("bad match count")
+		}
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		for i, instance := range match.Instances {
+			if instance.StartOffset != 5*i+1 {
+				t.Errorf("bad match offset: %d", instance.StartOffset)
+			}
+			if instance.Length != 2 {
+				t.Errorf("bad match length: %d", instance.Length)
+			}
+		}
+	}
+}
+
+func TestUnicodeRegex(t *testing.T) {
+	line := &buffer.Line{}
+	line.AddAt(0, '象')
+	line.AddAt(1, '形')
+	line.AddAt(2, '字')
+	line.AddAt(3, '㫃')
+	line.AddAt(4, '池')
+	matches, _ := AllMatches("象.*池", line, 40)
+	if len(matches) != 1 {
+		t.Error("bad match count")
+	}
+	for _, match := range matches {
+		if len(match.Instances) != 1 {
+			t.Error("bad match count")
+		}
+		if match.Line != line {
+			t.Error("bad match line")
+		}
+		for _, instance := range match.Instances {
+			if instance.StartOffset != 0 {
+				t.Errorf("bad match offset: %d", instance.StartOffset)
+			}
+			if instance.Length != 5 {
+				t.Errorf("bad match length: %d", instance.Length)
 			}
 		}
 	}

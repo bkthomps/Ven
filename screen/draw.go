@@ -3,50 +3,48 @@ package screen
 import (
 	"github.com/bkthomps/Ven/buffer"
 	"github.com/bkthomps/Ven/search"
-	"github.com/mattn/go-runewidth"
 )
 
-func (screen *Screen) drawLine(y int, runes []rune, cursorHighlight bool, matchInstances *[]search.MatchInstance) {
+func (screen *Screen) drawLineHighlight(y int, runes []rune, instances []search.MatchInstance) {
+	screen.drawBlankLine(y)
 	matchIndex := 0
 	x := 0
-	spacingOffset := 0
-	for _, r := range runes {
-		style := terminalStyle
-		if matchInstances != nil && matchIndex < len(*matchInstances) {
-			offset := (*matchInstances)[matchIndex].StartOffset + spacingOffset
-			length := (*matchInstances)[matchIndex].Length
-			if x >= offset && x < offset+length {
-				style = highlightStyle
+	for i, r := range runes {
+		if matchIndex < len(instances) && i >= instances[matchIndex].StartOffset {
+			xUpdated := buffer.RuneWidthJump(r, x)
+			if r == '\t' {
+				for j := x; j < xUpdated; j++ {
+					screen.tCell.SetContent(j, y, ' ', nil, highlightStyle)
+				}
+			} else {
+				screen.tCell.SetContent(x, y, r, nil, highlightStyle)
 			}
-			if x >= offset+length-1 {
+			if i == instances[matchIndex].StartOffset+instances[matchIndex].Length-1 {
 				matchIndex++
 			}
-		}
-		if cursorHighlight && y == screen.file.yCursor && x == screen.file.xCursor {
-			style = cursorStyle
-		}
-		if r == '\t' {
-			screen.tCell.SetContent(x, y, ' ', nil, style)
-			for i := x + 1; i < x+buffer.TabSize; i++ {
-				screen.tCell.SetContent(i, y, ' ', nil, style)
-			}
-			spacingOffset += buffer.TabSize - 1
-			x += buffer.TabSize
+			x = xUpdated
 			continue
 		}
-		screen.tCell.SetContent(x, y, r, nil, style)
-		width := runewidth.RuneWidth(r)
-		if width > 1 {
-			spacingOffset += width - 1
-		}
-		x += width
+		screen.tCell.SetContent(x, y, r, nil, terminalStyle)
+		x = buffer.RuneWidthJump(r, x)
 	}
-	style := terminalStyle
-	if cursorHighlight && y == screen.file.yCursor && x == screen.file.xCursor {
-		style = cursorStyle
+	screen.tCell.ShowCursor(screen.file.xCursor, screen.file.yCursor)
+}
+
+func (screen *Screen) drawLine(y int, runes []rune) {
+	screen.drawBlankLine(y)
+	x := 0
+	for _, r := range runes {
+		screen.tCell.SetContent(x, y, r, nil, terminalStyle)
+		x = buffer.RuneWidthJump(r, x)
 	}
-	screen.tCell.SetContent(x, y, ' ', nil, style)
-	for i := x + 1; i < x+buffer.TabSize; i++ {
+	screen.tCell.ShowCursor(screen.file.xCursor, screen.file.yCursor)
+}
+
+func (screen *Screen) drawBlankLine(y int) {
+	screen.tCell.HideCursor()
+	for i := 0; i < screen.width; i++ {
 		screen.tCell.SetContent(i, y, ' ', nil, terminalStyle)
 	}
+	screen.tCell.ShowCursor(screen.file.xCursor, screen.file.yCursor)
 }

@@ -3,12 +3,13 @@ package buffer
 import (
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 
 	"github.com/mattn/go-runewidth"
 )
 
-const TabSize = 4
+const TabSize = 8
 
 type File struct {
 	fileName string
@@ -78,9 +79,24 @@ func (file *File) Save() error {
 	return nil
 }
 
-func runeWidth(r rune) int {
+func (file *File) runeWidthIncrease(r rune) int {
+	return RuneWidthJump(r, file.spacingOffset)
+}
+
+func (file *File) runeWidthDecrease(r rune) int {
 	if r == '\t' {
-		return TabSize
+		offset := 0
+		for i := 0; i < file.runeOffset; i++ {
+			offset = RuneWidthJump(file.Current.Data[i], offset)
+		}
+		return offset
 	}
-	return runewidth.RuneWidth(r)
+	return file.spacingOffset - runewidth.RuneWidth(r)
+}
+
+func RuneWidthJump(r rune, offset int) int {
+	if r == '\t' {
+		return int(math.Ceil(float64(offset+1)/float64(TabSize)) * TabSize)
+	}
+	return offset + runewidth.RuneWidth(r)
 }
