@@ -44,7 +44,7 @@ func AllMatches(pattern string, start *buffer.Line, maxLineCount int) (matches [
 		}
 		byteToRuneIndex := make(map[int]int, 0)
 		runeIndex := 0
-		for byteIndex := range strData {
+		for byteIndex := range strData + " " {
 			byteToRuneIndex[byteIndex] = runeIndex
 			runeIndex++
 		}
