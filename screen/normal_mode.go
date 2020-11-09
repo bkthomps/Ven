@@ -40,6 +40,10 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			screen.file.xCursor = screen.file.buffer.StartOfLine()
 			height := screen.maxHeight()
 			screen.navigateLineBottom(height)
+		case '0':
+			screen.file.xCursor = screen.file.buffer.StartOfLine()
+		case '$':
+			screen.file.xCursor = screen.file.buffer.EndOfLine()
 		case 'x':
 			screen.file.xCursor = screen.file.buffer.Remove()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
