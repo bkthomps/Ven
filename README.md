@@ -26,7 +26,10 @@ There are three modes: normal mode, command mode, and insertion mode.
 ### Normal Mode
 * `:` to go into command mode
 * `/` to go into command (search) mode
-* `i` to go into insertion mode
+* `i` to go into insertion mode at the cursor
+* `a` to go into insertion mode after the cursor
+* `A` to go into insertion mode at the end of the line
+* `I` to go into insertion mode at the beginning of the line
 * `o` to open a new line under the cursor and go into insertion mode
 * `O` to open a new line above the cursor and go into insertion mode
 * `j` or down arrow to go down
