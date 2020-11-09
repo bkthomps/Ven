@@ -43,6 +43,8 @@ There are three modes: normal mode, command mode, and insertion mode.
 * `$` to move the cursor to the end of the line
 * `gg` to move the cursor to the start of the file
 * `G` to move the cursor to the end of the file
+* `ctrl-f` to go a page forward
+* `ctrl-b` to go a page backward
 * `x` delete character under the cursor
 * `X` delete character before the cursor
 * `dd` delete entire line
