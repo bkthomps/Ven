@@ -52,9 +52,9 @@ func (file *File) RemoveBefore() (xPosition int) {
 	if file.runeOffset == 0 {
 		return file.spacingOffset
 	}
+	file.runeOffset--
 	r := file.Current.Data[file.runeOffset]
 	file.spacingOffset = file.runeWidthDecrease(r)
-	file.runeOffset--
 	file.Current.RemoveAt(file.runeOffset)
 	file.mutated = true
 	return file.spacingOffset
