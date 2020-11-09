@@ -23,8 +23,17 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			screen.actionRight()
 		case 'i':
 			screen.mode = insertMode
+		case 'a':
+			screen.mode = insertMode
+			screen.actionRight()
+		case 'A':
+			screen.mode = insertMode
+			screen.file.xCursor = screen.file.buffer.EndOfLine(screen.mode == insertMode)
+		case 'I':
+			screen.mode = insertMode
+			screen.file.xCursor = screen.file.buffer.StartOfLine()
 		case 'o':
-			screen.file.xCursor = screen.file.buffer.EndOfLine()
+			screen.file.xCursor = screen.file.buffer.EndOfLine(screen.mode == insertMode)
 			screen.actionKeyPress('\n')
 			screen.mode = insertMode
 		case 'O':
@@ -52,7 +61,7 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 		case '0':
 			screen.file.xCursor = screen.file.buffer.StartOfLine()
 		case '$':
-			screen.file.xCursor = screen.file.buffer.EndOfLine()
+			screen.file.xCursor = screen.file.buffer.EndOfLine(screen.mode == insertMode)
 		case 'g':
 			if !previousCommand.Equals("g") {
 				screen.command.old = buffer.Line{Data: []rune("g")}

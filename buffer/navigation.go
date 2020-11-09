@@ -64,8 +64,12 @@ func (file *File) StartOfLine() (xPosition int) {
 	return file.spacingOffset
 }
 
-func (file *File) EndOfLine() (xPosition int) {
-	for i := file.runeOffset; i < len(file.Current.Data)-1; i++ {
+func (file *File) EndOfLine(isInsert bool) (xPosition int) {
+	insertOffset := 0
+	if isInsert {
+		insertOffset = 1
+	}
+	for i := file.runeOffset; i < len(file.Current.Data)+insertOffset-1; i++ {
 		r := file.Current.Data[file.runeOffset]
 		file.spacingOffset = file.runeWidthIncrease(r)
 		file.runeOffset++
