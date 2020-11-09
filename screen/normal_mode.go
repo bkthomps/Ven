@@ -23,6 +23,15 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			screen.actionRight()
 		case 'i':
 			screen.mode = insertMode
+		case 'o':
+			screen.file.xCursor = screen.file.buffer.EndOfLine()
+			screen.actionKeyPress('\n')
+			screen.mode = insertMode
+		case 'O':
+			screen.file.xCursor = screen.file.buffer.StartOfLine()
+			screen.actionKeyPress('\n')
+			screen.actionUp()
+			screen.mode = insertMode
 		case ':', '/':
 			screen.mode = commandMode
 			screen.command.current = buffer.Line{Data: []rune{ev.Rune()}}

@@ -24,9 +24,11 @@ Vi Enhanced. A text editor which is an enhancement to vi, and is similar to vim,
 There are three modes: normal mode, command mode, and insertion mode.
 
 ### Normal Mode
-* `i` to go into insertion mode
 * `:` to go into command mode
 * `/` to go into command (search) mode
+* `i` to go into insertion mode
+* `o` to open a new line under the cursor and go into insertion mode
+* `O` to open a new line above the cursor and go into insertion mode
 * `j` or down arrow to go down
 * `k` or up arrow to go up
 * `h` or left arrow to go left
@@ -36,6 +38,8 @@ There are three modes: normal mode, command mode, and insertion mode.
 * `L` to move the cursor to the bottom of the screen
 * `0` to move the cursor to the start of the line
 * `$` to move the cursor to the end of the line
+* `gg` to move the cursor to the start of the file
+* `G` to move the cursor to the end of the file
 * `x` delete character under the cursor
 * `X` delete character before the cursor
 * `dd` delete entire line
