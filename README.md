@@ -47,6 +47,8 @@ There are three modes: normal mode, command mode, and insertion mode.
 * `X` delete character before the cursor
 * `dd` delete entire line
 * `D` delete rest of line
+* `ctrl-f` to go a page forward
+* `ctrl-b` to go a page backward
 
 ### Command Mode
 * `esc` to go into normal mode

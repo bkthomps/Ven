@@ -55,7 +55,7 @@ type command struct {
 	spaceOffset int
 	yPosition   int
 	current     buffer.Line
-	old         buffer.Line
+	old         string
 }
 
 func (screen *Screen) Init(tCellScreen tcell.Screen, quit chan struct{}, fileName string) {
