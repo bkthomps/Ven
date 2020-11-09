@@ -72,3 +72,13 @@ func (file *File) EndOfLine() (xPosition int) {
 	}
 	return file.spacingOffset
 }
+
+func (file *File) JumpToTop() (xPosition int) {
+	file.Current = file.First
+	return file.StartOfLine()
+}
+
+func (file *File) JumpToBottom() (xPosition int) {
+	file.Current = file.last
+	return file.StartOfLine()
+}
