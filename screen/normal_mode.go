@@ -44,6 +44,26 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			screen.file.xCursor = screen.file.buffer.StartOfLine()
 		case '$':
 			screen.file.xCursor = screen.file.buffer.EndOfLine()
+		case 'g':
+			if !previousCommand.Equals("g") {
+				screen.command.old = buffer.Line{Data: []rune("g")}
+				break
+			}
+			screen.file.xCursor = screen.file.buffer.JumpToTop()
+			screen.file.yCursor = 0
+			screen.firstLine = screen.file.buffer.Current
+			screen.completeDraw(nil)
+		case 'G':
+			screen.file.xCursor = screen.file.buffer.JumpToBottom()
+			screen.file.yCursor = screen.file.height - 1
+			screen.firstLine = screen.file.buffer.Current
+			for i := 0; i < screen.file.height-1; i++ {
+				if screen.firstLine.Prev == nil {
+					break
+				}
+				screen.firstLine = screen.firstLine.Prev
+			}
+			screen.completeDraw(nil)
 		case 'x':
 			screen.file.xCursor = screen.file.buffer.Remove()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
@@ -51,18 +71,18 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			screen.file.xCursor = screen.file.buffer.RemoveBefore()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
 		case 'd':
-			if previousCommand.Equals("d") {
-				x, wasFirst, wasLast := screen.file.buffer.RemoveLine(screen.mode == insertMode)
-				screen.file.xCursor = x
-				if wasFirst {
-					screen.firstLine = screen.firstLine.Next
-				} else if wasLast {
-					screen.file.yCursor--
-				}
-				screen.completeDraw(nil)
-			} else {
+			if !previousCommand.Equals("d") {
 				screen.command.old = buffer.Line{Data: []rune("d")}
+				break
 			}
+			x, wasFirst, wasLast := screen.file.buffer.RemoveLine(screen.mode == insertMode)
+			screen.file.xCursor = x
+			if wasFirst {
+				screen.firstLine = screen.firstLine.Next
+			} else if wasLast {
+				screen.file.yCursor--
+			}
+			screen.completeDraw(nil)
 		case 'D':
 			screen.file.xCursor = screen.file.buffer.RemoveRestOfLine(screen.mode == insertMode)
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
