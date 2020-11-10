@@ -94,33 +94,25 @@ func (file *File) JumpToBottom() (xPosition int) {
 // the end of the file.
 func (file *File) NextWordStart() (xPosition int, linesDown int) {
 	linesDown = 0
-	for len(file.Current.Data) == 0 || !unicode.IsSpace(file.Current.Data[file.runeOffset]) {
-		if file.runeOffset >= len(file.Current.Data)-1 {
+	for file.isNotWhitespace(file.runeOffset) {
+		if file.isOutOfBounds(file.runeOffset) {
 			if file.Current.Next == nil {
 				return file.spacingOffset, linesDown
 			}
-			file.spacingOffset = 0
-			file.runeOffset = 0
-			linesDown++
-			file.Current = file.Current.Next
+			linesDown = file.moveLineDown(linesDown)
 			break
 		}
-		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
-		file.runeOffset++
+		file.moveForward()
 	}
-	for len(file.Current.Data) == 0 || unicode.IsSpace(file.Current.Data[file.runeOffset]) {
-		if file.runeOffset >= len(file.Current.Data)-1 {
+	for file.isWhitespace(file.runeOffset) {
+		if file.isOutOfBounds(file.runeOffset) {
 			if file.Current.Next == nil {
 				return file.spacingOffset, linesDown
 			}
-			file.spacingOffset = 0
-			file.runeOffset = 0
-			linesDown++
-			file.Current = file.Current.Next
+			linesDown = file.moveLineDown(linesDown)
 			continue
 		}
-		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
-		file.runeOffset++
+		file.moveForward()
 	}
 	return file.spacingOffset, linesDown
 }
@@ -135,21 +127,19 @@ func (file *File) PrevWordStart() (xPosition int, linesUp int) {
 	if file.runeOffset >= 0 {
 		file.runeOffset--
 	}
-	for file.runeOffset < 0 || unicode.IsSpace(file.Current.Data[file.runeOffset]) {
-		if file.runeOffset < 0 {
+	for file.isWhitespace(file.runeOffset) {
+		if file.isOutOfBounds(file.runeOffset) {
 			if file.Current.Prev == nil {
 				file.runeOffset = 0
 				return file.spacingOffset, linesUp
 			}
-			linesUp++
-			file.Current = file.Current.Prev
-			file.runeOffset = len(file.Current.Data) - 1
+			linesUp = file.moveLineUp(linesUp)
 			continue
 		}
 		file.runeOffset--
 	}
-	for file.runeOffset-1 <= 0 || !unicode.IsSpace(file.Current.Data[file.runeOffset-1]) {
-		if file.runeOffset-1 <= 0 {
+	for file.isNotWhitespace(file.runeOffset - 1) {
+		if file.isOutOfBounds(file.runeOffset - 1) {
 			file.runeOffset = 0
 			return file.spacingOffset, linesUp
 		}
@@ -168,29 +158,53 @@ func (file *File) PrevWordStart() (xPosition int, linesUp int) {
 func (file *File) NextWordEnd() (xPosition int, linesDown int) {
 	linesDown = 0
 	if file.runeOffset < len(file.Current.Data) {
-		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
-		file.runeOffset++
+		file.moveForward()
 	}
-	for file.runeOffset >= len(file.Current.Data) || unicode.IsSpace(file.Current.Data[file.runeOffset]) {
-		if file.runeOffset >= len(file.Current.Data) {
+	for file.isWhitespace(file.runeOffset) {
+		if file.isOutOfBounds(file.runeOffset) {
 			if file.Current.Next == nil {
 				return file.spacingOffset, linesDown
 			}
-			file.spacingOffset = 0
-			file.runeOffset = 0
-			linesDown++
-			file.Current = file.Current.Next
+			linesDown = file.moveLineDown(linesDown)
 			continue
 		}
-		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
-		file.runeOffset++
+		file.moveForward()
 	}
-	for file.runeOffset >= len(file.Current.Data)-1 || !unicode.IsSpace(file.Current.Data[file.runeOffset+1]) {
-		if file.runeOffset >= len(file.Current.Data)-1 {
+	for file.isNotWhitespace(file.runeOffset + 1) {
+		if file.isOutOfBounds(file.runeOffset + 1) {
 			return file.spacingOffset, linesDown
 		}
-		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
-		file.runeOffset++
+		file.moveForward()
 	}
 	return file.spacingOffset, linesDown
+}
+
+func (file *File) isWhitespace(index int) bool {
+	return file.isOutOfBounds(index) || unicode.IsSpace(file.Current.Data[index])
+}
+
+func (file *File) isNotWhitespace(index int) bool {
+	return file.isOutOfBounds(index) || !unicode.IsSpace(file.Current.Data[index])
+}
+
+func (file *File) isOutOfBounds(index int) bool {
+	return index < 0 || index >= len(file.Current.Data)
+}
+
+func (file *File) moveLineDown(linesDown int) int {
+	file.spacingOffset = 0
+	file.runeOffset = 0
+	file.Current = file.Current.Next
+	return linesDown + 1
+}
+
+func (file *File) moveLineUp(linesUp int) int {
+	file.Current = file.Current.Prev
+	file.runeOffset = len(file.Current.Data) - 1
+	return linesUp + 1
+}
+
+func (file *File) moveForward() {
+	file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
+	file.runeOffset++
 }
