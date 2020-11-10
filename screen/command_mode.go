@@ -1,6 +1,8 @@
 package screen
 
 import (
+	"strings"
+
 	"github.com/bkthomps/Ven/buffer"
 	"github.com/bkthomps/Ven/search"
 	"github.com/gdamore/tcell"
@@ -53,7 +55,8 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 func (screen *Screen) executeCommand(quit chan struct{}) {
 	if len(screen.command.current.Data) > 1 && screen.command.current.Data[0] == '/' {
 		pattern := screen.command.current.Data[1:]
-		matches, firstLineIndex, err := search.AllMatches(string(pattern), screen.firstLine, screen.file.height)
+		matches, firstLineIndex, err :=
+			search.AllMatches(string(pattern), screen.firstLine, screen.file.height)
 		if err != nil {
 			screen.displayError(badRegex)
 			return
@@ -68,7 +71,9 @@ func (screen *Screen) executeCommand(quit chan struct{}) {
 		screen.completeDraw(&matches)
 		return
 	}
-	if screen.command.current.Equals(":q") {
+	arguments := strings.Fields(string(screen.command.current.Data))
+	action := arguments[0]
+	if action == ":q" {
 		if screen.file.buffer.CanSafeQuit() {
 			close(quit)
 		} else {
@@ -76,20 +81,38 @@ func (screen *Screen) executeCommand(quit chan struct{}) {
 		}
 		return
 	}
-	if screen.command.current.Equals(":q!") {
+	if action == ":q!" {
 		close(quit)
 		return
 	}
-	if screen.command.current.Equals(":w") {
-		screen.write()
-		return
-	}
-	if screen.command.current.Equals(":wq") {
+	if action == ":w" || action == ":wq" {
+		fileArguments := len(arguments) - 1
+		if fileArguments == 1 {
+			screen.file.buffer.Name = arguments[1]
+		}
+		if fileArguments > 1 {
+			screen.displayError(tooManyFiles)
+			return
+		}
+		if fileArguments == 0 && screen.file.buffer.Name == "" {
+			screen.displayError(noFilename)
+			return
+		}
 		saved := screen.write()
-		if saved {
+		if saved && action == ":wq" {
 			close(quit)
 		}
 		return
 	}
 	screen.displayError(errorCommand)
+}
+
+func (screen *Screen) write() (saved bool) {
+	err := screen.file.buffer.Save()
+	if err != nil {
+		screen.displayError(errorSave)
+		return false
+	}
+	screen.mode = normalMode
+	return true
 }

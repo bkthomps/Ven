@@ -12,8 +12,8 @@ import (
 const TabSize = 8
 
 type File struct {
-	fileName string
-	mutated  bool
+	Name    string
+	mutated bool
 
 	First *Line
 	last  *Line
@@ -26,7 +26,7 @@ type File struct {
 }
 
 func (file *File) Init(fileName string) {
-	file.fileName = fileName
+	file.Name = fileName
 	line := &Line{}
 	line.Init(nil, nil)
 	file.First = line
@@ -61,7 +61,7 @@ func (file *File) CanSafeQuit() bool {
 }
 
 func (file *File) Save() error {
-	osFile, err := os.Create(file.fileName)
+	osFile, err := os.Create(file.Name)
 	if err != nil {
 		return err
 	}
