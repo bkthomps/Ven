@@ -1,6 +1,8 @@
 package screen
 
 import (
+	"strings"
+
 	"github.com/bkthomps/Ven/buffer"
 	"github.com/bkthomps/Ven/search"
 	"github.com/gdamore/tcell"
@@ -53,7 +55,8 @@ func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{})
 func (screen *Screen) executeCommand(quit chan struct{}) {
 	if len(screen.command.current.Data) > 1 && screen.command.current.Data[0] == '/' {
 		pattern := screen.command.current.Data[1:]
-		matches, firstLineIndex, err := search.AllMatches(string(pattern), screen.firstLine, screen.file.height)
+		matches, firstLineIndex, err :=
+			search.AllMatches(string(pattern), screen.firstLine, screen.file.height)
 		if err != nil {
 			screen.displayError(badRegex)
 			return
@@ -80,16 +83,43 @@ func (screen *Screen) executeCommand(quit chan struct{}) {
 		close(quit)
 		return
 	}
-	if screen.command.current.Equals(":w") {
-		screen.write()
-		return
-	}
-	if screen.command.current.Equals(":wq") {
-		saved := screen.write()
-		if saved {
-			close(quit)
-		}
+	if screen.saveToFile(quit) {
 		return
 	}
 	screen.displayError(errorCommand)
+}
+
+func (screen *Screen) saveToFile(quit chan struct{}) (processedAction bool) {
+	arguments := strings.Fields(string(screen.command.current.Data))
+	action := arguments[0]
+	if action != ":w" && action != ":wq" {
+		return false
+	}
+	fileArguments := len(arguments) - 1
+	if fileArguments == 1 {
+		screen.file.buffer.Name = arguments[1]
+	}
+	if fileArguments > 1 {
+		screen.displayError(tooManyFiles)
+		return false
+	}
+	if fileArguments == 0 && screen.file.buffer.Name == "" {
+		screen.displayError(noFilename)
+		return false
+	}
+	saved := screen.write()
+	if saved && action == ":wq" {
+		close(quit)
+	}
+	return true
+}
+
+func (screen *Screen) write() (saved bool) {
+	err := screen.file.buffer.Save()
+	if err != nil {
+		screen.displayError(errorSave)
+		return false
+	}
+	screen.mode = normalMode
+	return true
 }
