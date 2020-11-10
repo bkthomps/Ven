@@ -138,5 +138,31 @@ func (file *File) PrevWordStart() (xPosition int, linesUp int) {
 // which case it will move to the end of the next word, if there
 // is one, otherwise it will move the cursor to the end of the file.
 func (file *File) NextWordEnd() (xPosition int, linesDown int) {
-	return 0, 0
+	linesDown = 0
+	if file.runeOffset < len(file.Current.Data) {
+		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
+		file.runeOffset++
+	}
+	for file.runeOffset >= len(file.Current.Data) || unicode.IsSpace(file.Current.Data[file.runeOffset]) {
+		if file.runeOffset >= len(file.Current.Data) {
+			if file.Current.Next == nil {
+				return file.spacingOffset, linesDown
+			}
+			file.spacingOffset = 0
+			file.runeOffset = 0
+			linesDown++
+			file.Current = file.Current.Next
+			continue
+		}
+		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
+		file.runeOffset++
+	}
+	for file.runeOffset >= len(file.Current.Data)-1 || !unicode.IsSpace(file.Current.Data[file.runeOffset+1]) {
+		if file.runeOffset >= len(file.Current.Data)-1 {
+			return file.spacingOffset, linesDown
+		}
+		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
+		file.runeOffset++
+	}
+	return file.spacingOffset, linesDown
 }
