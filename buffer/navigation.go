@@ -1,5 +1,7 @@
 package buffer
 
+import "unicode"
+
 func (file *File) Left() (xPosition int) {
 	if file.runeOffset == 0 {
 		return 0
@@ -85,4 +87,56 @@ func (file *File) JumpToTop() (xPosition int) {
 func (file *File) JumpToBottom() (xPosition int) {
 	file.Current = file.last
 	return file.StartOfLine()
+}
+
+// NextWordStart will move the cursor to the start of the next word,
+// unless there is no next word, in which case the cursor moves to
+// the end of the file.
+func (file *File) NextWordStart() (xPosition int, linesDown int) {
+	linesDown = 0
+	for len(file.Current.Data) == 0 || !unicode.IsSpace(file.Current.Data[file.runeOffset]) {
+		if file.runeOffset >= len(file.Current.Data)-1 {
+			if file.Current.Next == nil {
+				return file.spacingOffset, linesDown
+			}
+			file.spacingOffset = 0
+			file.runeOffset = 0
+			linesDown++
+			file.Current = file.Current.Next
+			break
+		}
+		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
+		file.runeOffset++
+	}
+	for len(file.Current.Data) == 0 || unicode.IsSpace(file.Current.Data[file.runeOffset]) {
+		if file.runeOffset >= len(file.Current.Data)-1 {
+			if file.Current.Next == nil {
+				return file.spacingOffset, linesDown
+			}
+			file.spacingOffset = 0
+			file.runeOffset = 0
+			linesDown++
+			file.Current = file.Current.Next
+			continue
+		}
+		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
+		file.runeOffset++
+	}
+	return file.spacingOffset, linesDown
+}
+
+// PrevWordStart will move the cursor to the start of the current word,
+// unless the cursor is at the start of a word or on whitespace, in
+// which case it will move to the start of the previous word, if there
+// is one, otherwise it will move the cursor to the end of the file.
+func (file *File) PrevWordStart() (xPosition int, linesUp int) {
+	return 0, 0
+}
+
+// NextWordEnd will move the cursor to the end of the current word,
+// unless the cursor is at the end of a word or on whitespace, in
+// which case it will move to the end of the next word, if there
+// is one, otherwise it will move the cursor to the end of the file.
+func (file *File) NextWordEnd() (xPosition int, linesDown int) {
+	return 0, 0
 }
