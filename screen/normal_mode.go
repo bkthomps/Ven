@@ -121,7 +121,6 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			for i := 0; i < linesUp; i++ {
 				if screen.file.yCursor == 0 {
 					screen.firstLine = screen.firstLine.Prev
-					screen.completeDraw(nil)
 				} else {
 					screen.file.yCursor--
 				}
