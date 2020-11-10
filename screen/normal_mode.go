@@ -116,7 +116,19 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 				screen.completeDraw(nil)
 			}
 		case 'b':
-
+			x, linesUp := screen.file.buffer.PrevWordStart()
+			screen.file.xCursor = x
+			for i := 0; i < linesUp; i++ {
+				if screen.file.yCursor == 0 {
+					screen.firstLine = screen.firstLine.Prev
+					screen.completeDraw(nil)
+				} else {
+					screen.file.yCursor--
+				}
+			}
+			if linesUp > 0 {
+				screen.completeDraw(nil)
+			}
 		case 'e':
 			x, linesDown := screen.file.buffer.NextWordEnd()
 			screen.file.xCursor = x

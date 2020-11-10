@@ -128,9 +128,37 @@ func (file *File) NextWordStart() (xPosition int, linesDown int) {
 // PrevWordStart will move the cursor to the start of the current word,
 // unless the cursor is at the start of a word or on whitespace, in
 // which case it will move to the start of the previous word, if there
-// is one, otherwise it will move the cursor to the end of the file.
+// is one, otherwise it will move the cursor to the start of the file.
 func (file *File) PrevWordStart() (xPosition int, linesUp int) {
-	return 0, 0
+	linesUp = 0
+	file.spacingOffset = 0
+	if file.runeOffset >= 0 {
+		file.runeOffset--
+	}
+	for file.runeOffset < 0 || unicode.IsSpace(file.Current.Data[file.runeOffset]) {
+		if file.runeOffset < 0 {
+			if file.Current.Prev == nil {
+				file.runeOffset = 0
+				return file.spacingOffset, linesUp
+			}
+			linesUp++
+			file.Current = file.Current.Prev
+			file.runeOffset = len(file.Current.Data) - 1
+			continue
+		}
+		file.runeOffset--
+	}
+	for file.runeOffset-1 <= 0 || !unicode.IsSpace(file.Current.Data[file.runeOffset-1]) {
+		if file.runeOffset-1 <= 0 {
+			file.runeOffset = 0
+			return file.spacingOffset, linesUp
+		}
+		file.runeOffset--
+	}
+	for i := 0; i < file.runeOffset; i++ {
+		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[i])
+	}
+	return file.spacingOffset, linesUp
 }
 
 // NextWordEnd will move the cursor to the end of the current word,
