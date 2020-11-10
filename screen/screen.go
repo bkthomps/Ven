@@ -21,6 +21,8 @@ var (
 	errorSave     = []rune("-- Could Not Save File --")
 	modifiedFile  = []rune("-- File Has Been Modified Since Last Save --")
 	badRegex      = []rune("-- Malformed Regex --")
+	noFilename    = []rune("-- No File Name Specified --")
+	tooManyFiles  = []rune("-- Must Specify A Single File --")
 )
 
 var (
@@ -252,14 +254,4 @@ func (screen *Screen) actionKeyPress(rune rune) {
 		}
 		screen.completeDraw(nil)
 	}
-}
-
-func (screen *Screen) write() (saved bool) {
-	err := screen.file.buffer.Save()
-	if err != nil {
-		screen.displayError(errorSave)
-		return false
-	}
-	screen.mode = normalMode
-	return true
 }

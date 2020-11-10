@@ -12,11 +12,14 @@ import (
 const version = "0.4.0"
 
 func main() {
-	if len(os.Args) != 2 {
-		print("Usage: ven <file_name>\n")
+	if len(os.Args) > 2 {
+		print("Can handle at most one file\n")
 		return
 	}
-	userArg := os.Args[1]
+	userArg := ""
+	if len(os.Args) > 1 {
+		userArg = os.Args[1]
+	}
 	if userArg == "-v" || userArg == "--version" {
 		print("Ven version " + version + "\n")
 		print("Created by Bailey Thompson\n")
