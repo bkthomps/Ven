@@ -71,7 +71,9 @@ func (screen *Screen) executeCommand(quit chan struct{}) {
 		screen.completeDraw(&matches)
 		return
 	}
-	if screen.command.current.Equals(":q") {
+	arguments := strings.Fields(string(screen.command.current.Data))
+	action := arguments[0]
+	if action == ":q" {
 		if screen.file.buffer.CanSafeQuit() {
 			close(quit)
 		} else {
@@ -79,39 +81,30 @@ func (screen *Screen) executeCommand(quit chan struct{}) {
 		}
 		return
 	}
-	if screen.command.current.Equals(":q!") {
+	if action == ":q!" {
 		close(quit)
 		return
 	}
-	if screen.saveToFile(quit) {
+	if action == ":w" || action == ":wq" {
+		fileArguments := len(arguments) - 1
+		if fileArguments == 1 {
+			screen.file.buffer.Name = arguments[1]
+		}
+		if fileArguments > 1 {
+			screen.displayError(tooManyFiles)
+			return
+		}
+		if fileArguments == 0 && screen.file.buffer.Name == "" {
+			screen.displayError(noFilename)
+			return
+		}
+		saved := screen.write()
+		if saved && action == ":wq" {
+			close(quit)
+		}
 		return
 	}
 	screen.displayError(errorCommand)
-}
-
-func (screen *Screen) saveToFile(quit chan struct{}) (processedAction bool) {
-	arguments := strings.Fields(string(screen.command.current.Data))
-	action := arguments[0]
-	if action != ":w" && action != ":wq" {
-		return false
-	}
-	fileArguments := len(arguments) - 1
-	if fileArguments == 1 {
-		screen.file.buffer.Name = arguments[1]
-	}
-	if fileArguments > 1 {
-		screen.displayError(tooManyFiles)
-		return false
-	}
-	if fileArguments == 0 && screen.file.buffer.Name == "" {
-		screen.displayError(noFilename)
-		return false
-	}
-	saved := screen.write()
-	if saved && action == ":wq" {
-		close(quit)
-	}
-	return true
 }
 
 func (screen *Screen) write() (saved bool) {
