@@ -102,6 +102,45 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 				screen.firstLine = screen.firstLine.Prev
 			}
 			screen.completeDraw(nil)
+		case 'w':
+			x, linesDown := screen.file.buffer.NextWordStart()
+			screen.file.xCursor = x
+			for i := 0; i < linesDown; i++ {
+				if screen.file.yCursor == screen.file.height-1 {
+					screen.firstLine = screen.firstLine.Next
+				} else {
+					screen.file.yCursor++
+				}
+			}
+			if linesDown > 0 {
+				screen.completeDraw(nil)
+			}
+		case 'b':
+			x, linesUp := screen.file.buffer.PrevWordStart()
+			screen.file.xCursor = x
+			for i := 0; i < linesUp; i++ {
+				if screen.file.yCursor == 0 {
+					screen.firstLine = screen.firstLine.Prev
+				} else {
+					screen.file.yCursor--
+				}
+			}
+			if linesUp > 0 {
+				screen.completeDraw(nil)
+			}
+		case 'e':
+			x, linesDown := screen.file.buffer.NextWordEnd()
+			screen.file.xCursor = x
+			for i := 0; i < linesDown; i++ {
+				if screen.file.yCursor == screen.file.height-1 {
+					screen.firstLine = screen.firstLine.Next
+				} else {
+					screen.file.yCursor++
+				}
+			}
+			if linesDown > 0 {
+				screen.completeDraw(nil)
+			}
 		case 'x':
 			screen.file.xCursor = screen.file.buffer.Remove()
 			screen.drawLine(screen.file.yCursor, screen.file.buffer.Current.Data)
