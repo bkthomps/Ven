@@ -36,7 +36,7 @@ func (file *File) Up(isInsert bool) (wasPossible bool, xPosition int) {
 }
 
 func (file *File) Down(isInsert bool) (wasPossible bool, xPosition int) {
-	if file.Current == file.last {
+	if file.Current.Next == nil {
 		return false, file.spacingOffset
 	}
 	file.Current = file.Current.Next
