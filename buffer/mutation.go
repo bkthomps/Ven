@@ -19,6 +19,8 @@ func (file *File) addLine() {
 	line.Init(file.Current.Next, file.Current)
 	if file.Current.Next != nil {
 		file.Current.Next.Prev = line
+	} else {
+		file.last = line
 	}
 	file.Current.Next = line
 	file.Current = line
@@ -72,6 +74,8 @@ func (file *File) Backspace() (xPosition int, deletedLine bool) {
 		current.Prev.Next = current.Next
 		if current.Next != nil {
 			current.Next.Prev = current.Prev
+		} else {
+			file.last = file.Current
 		}
 		file.Lines--
 		return file.spacingOffset, true
@@ -102,6 +106,7 @@ func (file *File) RemoveLine(isInsert bool) (xPosition int, wasFirst bool, wasLa
 	if file.Current.Next == nil {
 		file.Current = file.Current.Prev
 		file.Current.Next = nil
+		file.last = file.Current
 		file.Lines--
 		file.calculateOffset(isInsert)
 		return file.spacingOffset, false, true
