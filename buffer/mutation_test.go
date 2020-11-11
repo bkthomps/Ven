@@ -54,10 +54,10 @@ func TestAddNewlines(t *testing.T) {
 	}
 	_, addedLine := file.Add('\n')
 	if !addedLine {
-		t.Error("line should not have been added")
+		t.Error("line should have been added")
 	}
 	if file.runeOffset != 0 {
-		t.Error("offset should be rese")
+		t.Error("offset should be reset")
 	}
 	for i, r := range runes {
 		_, addedLine := file.Add(r)
@@ -163,5 +163,102 @@ func TestRemoveBefore(t *testing.T) {
 	}
 	if len(file.First.Data) != 0 {
 		t.Error("should be empty")
+	}
+}
+
+func TestBackspaceImpossible(t *testing.T) {
+	file := File{}
+	file.Init("")
+	x, deleted := file.Backspace()
+	if x != 0 {
+		t.Error("should stay at zero index")
+	}
+	if deleted {
+		t.Error("no line should have been deleted")
+	}
+}
+
+func TestBackspace(t *testing.T) {
+	file := File{}
+	file.Init("")
+	size := 0
+	for c := 'a'; c <= 'z'; c++ {
+		file.Add(c)
+		size++
+	}
+	for c := 'z'; c >= 'a'; c-- {
+		size--
+		x, deleted := file.Backspace()
+		if deleted {
+			t.Error("no line should have been deleted")
+		}
+		if size != len(file.First.Data) {
+			t.Error("bad data size")
+		}
+		if x != size {
+			t.Error("bad position")
+		}
+		for r := 'a'; r < c; r++ {
+			if r != file.First.Data[r-'a'] {
+				t.Error("bad data")
+			}
+		}
+	}
+}
+
+func TestBackspaceMultipleLines(t *testing.T) {
+	file := File{}
+	file.Init("")
+	for c := 'a'; c <= 'z'; c++ {
+		file.Add(c)
+	}
+	file.Add('\n')
+	for c := 'a'; c <= 'z'; c++ {
+		file.Add(c)
+	}
+	size := 26
+	for c := 'z'; c >= 'a'; c-- {
+		size--
+		x, deleted := file.Backspace()
+		if deleted {
+			t.Error("no line should have been deleted")
+		}
+		if size != len(file.First.Next.Data) {
+			t.Error("bad data size")
+		}
+		if x != size {
+			t.Error("bad position")
+		}
+		for r := 'a'; r < c; r++ {
+			if r != file.First.Next.Data[r-'a'] {
+				t.Error("bad data")
+			}
+		}
+	}
+	size = 26
+	x, deleted := file.Backspace()
+	if x != size {
+		t.Error("backspace should return to right side offset")
+	}
+	if !deleted {
+		t.Error("backspace should cause deleted line")
+	}
+	for c := 'z'; c >= 'a'; c-- {
+		size--
+		x, deleted := file.Backspace()
+		if deleted {
+			t.Error("no line should have been deleted")
+		}
+		if size != len(file.First.Data) {
+			t.Error("bad data size")
+		}
+		if x != size {
+			t.Error("bad position")
+		}
+		for r := 'a'; r < c; r++ {
+			if r != file.First.Data[r-'a'] {
+				t.Error("bad data")
+			}
+		}
 	}
 }
