@@ -157,7 +157,11 @@ func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
 			if wasFirst {
 				screen.firstLine = screen.firstLine.Next
 			} else if wasLast {
-				screen.file.yCursor--
+				if screen.file.yCursor == 0 {
+					screen.firstLine = screen.firstLine.Prev
+				} else {
+					screen.file.yCursor--
+				}
 			}
 			screen.completeDraw(nil)
 		case 'D':

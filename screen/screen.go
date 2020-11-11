@@ -237,10 +237,15 @@ func (screen *Screen) actionRight() {
 func (screen *Screen) actionDelete() {
 	x, deletedLine := screen.file.buffer.Backspace()
 	screen.file.xCursor = x
-	if deletedLine {
-		screen.file.yCursor--
-		screen.completeDraw(nil)
+	if !deletedLine {
+		return
 	}
+	if screen.file.yCursor == 0 {
+		screen.firstLine = screen.firstLine.Prev
+	} else {
+		screen.file.yCursor--
+	}
+	screen.completeDraw(nil)
 }
 
 func (screen *Screen) actionKeyPress(rune rune) {
