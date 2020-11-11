@@ -68,6 +68,7 @@ func (screen *Screen) executeCommand(quit chan struct{}) {
 				screen.firstLine = screen.firstLine.Next
 			}
 		}
+		screen.mode = highlightMode
 		screen.completeDraw(&matches)
 		return
 	}
@@ -115,4 +116,11 @@ func (screen *Screen) write() (saved bool) {
 	}
 	screen.mode = normalMode
 	return true
+}
+
+func (screen *Screen) displayError(error []rune) {
+	screen.clearCommand()
+	screen.putCommand(error)
+	screen.mode = commandErrorMode
+	screen.displayMode()
 }

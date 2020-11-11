@@ -13,6 +13,7 @@ const (
 	normalMode
 	commandMode
 	commandErrorMode
+	highlightMode
 )
 
 var (
@@ -111,13 +112,6 @@ func (screen *Screen) completeDraw(matchLines *[]search.MatchLine) {
 	}
 }
 
-func (screen *Screen) displayError(error []rune) {
-	screen.clearCommand()
-	screen.putCommand(error)
-	screen.mode = commandErrorMode
-	screen.displayMode()
-}
-
 func (screen *Screen) displayMode() {
 	switch screen.mode {
 	case insertMode:
@@ -131,6 +125,8 @@ func (screen *Screen) displayMode() {
 		screen.tCell.ShowCursor(screen.command.spaceOffset, screen.command.yPosition)
 	case commandErrorMode:
 		screen.tCell.HideCursor()
+	case highlightMode:
+		// No action
 	}
 	screen.tCell.Sync()
 }
@@ -157,6 +153,10 @@ func (screen *Screen) listener(quit chan struct{}) {
 				screen.executeCommandMode(ev, quit)
 			case commandErrorMode:
 				screen.mode = commandMode
+			case highlightMode:
+				screen.mode = normalMode
+				screen.completeDraw(nil)
+				screen.executeNormalMode(ev)
 			}
 			screen.displayMode()
 		case *tcell.EventResize:
