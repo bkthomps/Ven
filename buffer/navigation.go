@@ -97,24 +97,24 @@ func (file *File) NextWordStart() (xPosition int, linesDown int) {
 	for file.isNotWhitespace(file.runeOffset) {
 		if file.isOutOfBounds(file.runeOffset) {
 			if file.Current.Next == nil {
-				return file.spacingOffset, linesDown
+				return file.setBoundedOffsets(), linesDown
 			}
 			linesDown = file.moveLineDown(linesDown)
 			break
 		}
-		file.moveForward()
+		file.runeOffset++
 	}
 	for file.isWhitespace(file.runeOffset) {
 		if file.isOutOfBounds(file.runeOffset) {
 			if file.Current.Next == nil {
-				return file.spacingOffset, linesDown
+				return file.setBoundedOffsets(), linesDown
 			}
 			linesDown = file.moveLineDown(linesDown)
 			continue
 		}
-		file.moveForward()
+		file.runeOffset++
 	}
-	return file.spacingOffset, linesDown
+	return file.setBoundedOffsets(), linesDown
 }
 
 // PrevWordStart will move the cursor to the start of the current word,
@@ -123,15 +123,13 @@ func (file *File) NextWordStart() (xPosition int, linesDown int) {
 // is one, otherwise it will move the cursor to the start of the file.
 func (file *File) PrevWordStart() (xPosition int, linesUp int) {
 	linesUp = 0
-	file.spacingOffset = 0
 	if file.runeOffset >= 0 {
 		file.runeOffset--
 	}
 	for file.isWhitespace(file.runeOffset) {
 		if file.isOutOfBounds(file.runeOffset) {
 			if file.Current.Prev == nil {
-				file.runeOffset = 0
-				return file.spacingOffset, linesUp
+				return file.setBoundedOffsets(), linesUp
 			}
 			linesUp = file.moveLineUp(linesUp)
 			continue
@@ -140,15 +138,11 @@ func (file *File) PrevWordStart() (xPosition int, linesUp int) {
 	}
 	for file.isNotWhitespace(file.runeOffset - 1) {
 		if file.isOutOfBounds(file.runeOffset - 1) {
-			file.runeOffset = 0
-			return file.spacingOffset, linesUp
+			return file.setBoundedOffsets(), linesUp
 		}
 		file.runeOffset--
 	}
-	for i := 0; i < file.runeOffset; i++ {
-		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[i])
-	}
-	return file.spacingOffset, linesUp
+	return file.setBoundedOffsets(), linesUp
 }
 
 // NextWordEnd will move the cursor to the end of the current word,
@@ -158,25 +152,25 @@ func (file *File) PrevWordStart() (xPosition int, linesUp int) {
 func (file *File) NextWordEnd() (xPosition int, linesDown int) {
 	linesDown = 0
 	if file.runeOffset < len(file.Current.Data) {
-		file.moveForward()
+		file.runeOffset++
 	}
 	for file.isWhitespace(file.runeOffset) {
 		if file.isOutOfBounds(file.runeOffset) {
 			if file.Current.Next == nil {
-				return file.spacingOffset, linesDown
+				return file.setBoundedOffsets(), linesDown
 			}
 			linesDown = file.moveLineDown(linesDown)
 			continue
 		}
-		file.moveForward()
+		file.runeOffset++
 	}
 	for file.isNotWhitespace(file.runeOffset + 1) {
 		if file.isOutOfBounds(file.runeOffset + 1) {
-			return file.spacingOffset, linesDown
+			return file.setBoundedOffsets(), linesDown
 		}
-		file.moveForward()
+		file.runeOffset++
 	}
-	return file.spacingOffset, linesDown
+	return file.setBoundedOffsets(), linesDown
 }
 
 func (file *File) isWhitespace(index int) bool {
@@ -204,7 +198,25 @@ func (file *File) moveLineUp(linesUp int) int {
 	return linesUp + 1
 }
 
-func (file *File) moveForward() {
-	file.spacingOffset = file.runeWidthIncrease(file.Current.Data[file.runeOffset])
-	file.runeOffset++
+func (file *File) setBoundedOffsets() (spacingOffset int) {
+	file.runeOffset = file.boundRuneOffset()
+	return file.setSpacingOffset()
+}
+
+func (file *File) boundRuneOffset() int {
+	if len(file.Current.Data) == 0 {
+		return 0
+	}
+	if file.runeOffset >= len(file.Current.Data) {
+		return len(file.Current.Data) - 1
+	}
+	return file.runeOffset
+}
+
+func (file *File) setSpacingOffset() int {
+	file.spacingOffset = 0
+	for i := 0; i < file.runeOffset; i++ {
+		file.spacingOffset = file.runeWidthIncrease(file.Current.Data[i])
+	}
+	return file.spacingOffset
 }
