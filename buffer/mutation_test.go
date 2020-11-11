@@ -262,3 +262,129 @@ func TestBackspaceMultipleLines(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoveLineNoData(t *testing.T) {
+	file := File{}
+	file.Init("")
+	x, _, _ := file.RemoveLine(false)
+	if x != 0 {
+		t.Error("position should be zero")
+	}
+}
+
+func TestRemoveLineFirstLine(t *testing.T) {
+	file := File{}
+	file.Init("")
+	runes := []rune{'a', 'b', 'c', '\n', 'd', 'e', 'f', '\n', 'g', 'h', 'i'}
+	for _, r := range runes {
+		file.Add(r)
+	}
+	if file.Lines != 3 {
+		t.Error("should have three lines")
+	}
+	file.Up(false)
+	file.Up(false)
+	file.RemoveLine(false)
+	for i, r := range file.First.Data {
+		if r != runes[i+4] {
+			t.Error("bad rune")
+		}
+	}
+	for i, r := range file.First.Next.Data {
+		if r != runes[i+8] {
+			t.Error("bad rune")
+		}
+	}
+}
+
+func TestRemoveLineLastLine(t *testing.T) {
+	file := File{}
+	file.Init("")
+	runes := []rune{'a', 'b', 'c', '\n', 'd', 'e', 'f', '\n', 'g', 'h', 'i'}
+	for _, r := range runes {
+		file.Add(r)
+	}
+	if file.Lines != 3 {
+		t.Error("should have three lines")
+	}
+	file.RemoveLine(false)
+	for i, r := range file.First.Data {
+		if r != runes[i] {
+			t.Error("bad rune")
+		}
+	}
+	for i, r := range file.First.Next.Data {
+		if r != runes[i+4] {
+			t.Error("bad rune")
+		}
+	}
+}
+
+func TestRemoveLineMiddleLine(t *testing.T) {
+	file := File{}
+	file.Init("")
+	runes := []rune{'a', 'b', 'c', '\n', 'd', 'e', 'f', '\n', 'g', 'h', 'i'}
+	for _, r := range runes {
+		file.Add(r)
+	}
+	if file.Lines != 3 {
+		t.Error("should have three lines")
+	}
+	file.Up(false)
+	file.RemoveLine(false)
+	for i, r := range file.First.Data {
+		if r != runes[i] {
+			t.Error("bad rune")
+		}
+	}
+	for i, r := range file.First.Next.Data {
+		if r != runes[i+8] {
+			t.Error("bad rune")
+		}
+	}
+}
+
+func TestRemoveRestOfLineNoData(t *testing.T) {
+	file := File{}
+	file.Init("")
+	x := file.RemoveRestOfLine(false)
+	if x != 0 {
+		t.Error("should be zero index")
+	}
+}
+
+func TestRemoveRestOfLineZeroOffset(t *testing.T) {
+	file := File{}
+	file.Init("")
+	for c := 'a'; c <= 'z'; c++ {
+		file.Add(c)
+	}
+	for c := 'z'; c >= 'a'; c-- {
+		file.Left()
+	}
+	x := file.RemoveRestOfLine(false)
+	if x != 0 {
+		t.Error("should be zero index")
+	}
+	if len(file.First.Data) != 0 {
+		t.Error("should have deleted everything")
+	}
+}
+
+func TestRemoveRestOfLineNonZeroOffset(t *testing.T) {
+	file := File{}
+	file.Init("")
+	for c := 'a'; c <= 'z'; c++ {
+		file.Add(c)
+	}
+	for c := 'z'; c >= 'h'; c-- {
+		file.Left()
+	}
+	x := file.RemoveRestOfLine(false)
+	if x != 'h'-'a'-1 {
+		t.Errorf("incorrect index: %d", x)
+	}
+	if len(file.First.Data) != 'h'-'a' {
+		t.Errorf("should have deleted to the right: got size %d", len(file.First.Data))
+	}
+}
