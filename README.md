@@ -9,16 +9,10 @@ Vi Enhanced. A text editor which is an enhancement to vi, and is similar to vim,
 
 ## Installation
 * Download golang if you have not yet done so
-* Run:
-  ```
-  go get github.com/bkthomps/Ven
-  go build $GOPATH/src/github.com/bkthomps/Ven
-  ```
-* Then add this to your bashrc:
-  ```
-  alias ven='$GOPATH/src/github.com/bkthomps/Ven/Ven'
-  ```
-* You can now run Ven from anywhere using `ven <filename>`
+* Run: `go get github.com/bkthomps/Ven`
+* Run: `go build $GOPATH/src/github.com/bkthomps/Ven`
+* Then add this to your bashrc: `alias ven='$GOPATH/src/github.com/bkthomps/Ven/Ven'`
+* You can now run Ven from anywhere using `ven` or `ven <filename>`
 
 ## Commands
 There are three modes: normal mode, command mode, and insertion mode.
