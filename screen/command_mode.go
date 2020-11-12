@@ -69,7 +69,7 @@ func (screen *Screen) executeCommand(quit chan struct{}) {
 			}
 		}
 		screen.mode = highlightMode
-		screen.completeDraw(&matches)
+		screen.completeDraw(matches)
 		return
 	}
 	arguments := strings.Fields(string(screen.command.current.Data))
