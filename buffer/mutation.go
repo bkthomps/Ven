@@ -42,7 +42,9 @@ func (file *File) Remove() (xPosition int) {
 	if file.runeOffset > 0 && file.runeOffset == len(file.Current.Data)-1 {
 		r := file.Current.Data[file.runeOffset]
 		file.spacingOffset = file.runeWidthDecrease(r)
+		file.Current.RemoveAt(file.runeOffset)
 		file.runeOffset--
+		return file.spacingOffset
 	}
 	file.Current.RemoveAt(file.runeOffset)
 	return file.spacingOffset
