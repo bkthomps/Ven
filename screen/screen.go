@@ -90,19 +90,19 @@ func (screen *Screen) updateProperties() {
 	screen.command.yPosition = y - 1
 }
 
-func (screen *Screen) completeDraw(matchLines *[]search.MatchLine) {
+func (screen *Screen) completeDraw(matchLines []search.MatchLine) {
 	matchIndex := 0
 	y := 0
 	for traverse := screen.firstLine; traverse != nil && y < screen.file.height; y++ {
-		var matchInstances *[]search.MatchInstance = nil
-		if matchLines != nil && matchIndex < len(*matchLines) && traverse == (*matchLines)[matchIndex].Line {
-			matchInstances = &(*matchLines)[matchIndex].Instances
+		var matchInstances []search.MatchInstance
+		if matchLines != nil && matchIndex < len(matchLines) && traverse == matchLines[matchIndex].Line {
+			matchInstances = matchLines[matchIndex].Instances
 			matchIndex++
 		}
 		if matchInstances == nil {
 			screen.drawLine(y, traverse.Data)
 		} else {
-			screen.drawLineHighlight(y, traverse.Data, *matchInstances)
+			screen.drawLineHighlight(y, traverse.Data, matchInstances)
 		}
 		traverse = traverse.Next
 	}
