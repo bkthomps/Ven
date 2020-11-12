@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/bkthomps/Ven/blob/master/LICENSE)
 
 # Ven
-Vi Enhanced. A text editor which is an enhancement to vi, and is similar to vim, but written in Go. Uses a gap buffer to store the text.
+Vi Enhanced. A text editor which is an enhancement to vi, and is similar to vim, but written in Go.
 
 ## Installation
 * Download golang if you have not yet done so
