@@ -2,7 +2,7 @@ package screen
 
 import (
 	"github.com/bkthomps/Ven/buffer"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 func (screen *Screen) executeNormalMode(ev *tcell.EventKey) {
