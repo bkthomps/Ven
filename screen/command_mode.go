@@ -5,7 +5,7 @@ import (
 
 	"github.com/bkthomps/Ven/buffer"
 	"github.com/bkthomps/Ven/search"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 func (screen *Screen) executeCommandMode(ev *tcell.EventKey, quit chan struct{}) {
